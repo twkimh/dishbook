@@ -1,0 +1,63 @@
+<view class="page detail-page">
+  <!-- 加载骨架 -->
+  <block wx:if="{{loading}}">
+    <view class="skeleton detail-cover-skeleton"></view>
+    <view class="skeleton-line skeleton-line-title"></view>
+    <view class="skeleton-line"></view>
+    <view class="skeleton-line skeleton-line-short"></view>
+  </block>
+
+  <block wx:elif="{{dish}}">
+    <!-- 封面大图：fileID 直接给 image，容器定高避免加载时跳动 -->
+    <view class="cover-block">
+      <view class="tape tape-top"></view>
+      <view class="paper cover-wrap">
+        <image
+          wx:if="{{dish.cover}}"
+          class="cover-img"
+          src="{{dish.cover}}"
+          mode="aspectFill"
+        />
+        <view wx:else class="cover-blank">
+          <text class="cover-blank-mark">还没有照片</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 菜名：手帐风标题 + 手绘下划装饰（.page-title 自带波浪下划线） -->
+    <view class="page-head detail-head">
+      <view class="page-title">{{dish.name}}</view>
+    </view>
+
+    <view wx:if="{{tagList.length}}" class="detail-tags">
+      <tag-chip wx:for="{{tagList}}" wx:key="text" text="{{item.text}}" tone="{{item.tone}}" />
+    </view>
+
+    <view wx:if="{{dish.story}}" class="detail-story">{{dish.story}}</view>
+
+    <view class="dashed detail-dashed"></view>
+
+    <view class="detail-meta">
+      <view class="meta-item">
+        <view class="meta-value">{{cookedText}}</view>
+        <view class="meta-label">被点次数</view>
+      </view>
+      <view class="meta-item">
+        <view class="meta-value meta-value-sm">{{createdText}}</view>
+        <view class="meta-label">收录于</view>
+      </view>
+    </view>
+  </block>
+
+  <empty-state wx:else text="这道菜找不到了" hint="可能已经被主人家删掉了" />
+
+  <!-- 底部固定点菜按钮 -->
+  <view wx:if="{{dish}}" class="order-bar">
+    <view
+      class="sketch-btn order-btn {{ordering || ordered ? 'order-btn-busy' : ''}}"
+      hover-class="{{ordering || ordered ? 'none' : 'tap-shrink'}}"
+      hover-stay-time="60"
+      bindtap="onOrderTap"
+    >{{ordered ? '已点 · 主人家能看到' : (ordering ? '正在点菜…' : '点这道菜')}}</view>
+  </view>
+</view>

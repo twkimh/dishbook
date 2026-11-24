@@ -1,0 +1,151 @@
+/* 通用样式 · 纸感 / 胶带 / 虚线 / 手绘装饰 / 点击反馈（SPEC §5）
+ * 本文件不得出现颜色字面量，一律 var(--x) 或 rgba()。
+ */
+
+/* ---------- 页面容器：米黄纸底 + 细密圆点纸纹（透明度 0.04） ---------- */
+.page {
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: 28rpx 28rpx 180rpx;
+  background-color: var(--paper);
+  background-image: radial-gradient(rgba(90, 62, 40, 0.04) 1rpx, transparent 1rpx);
+  background-size: 22rpx 22rpx;
+  color: var(--ink);
+  font-size: 28rpx;
+  line-height: 1.6;
+}
+
+/* ---------- 标题：加粗 + 字距放宽 + 短手绘下划线 ---------- */
+.page-head {
+  margin: 8rpx 0 36rpx;
+}
+
+.page-title {
+  position: relative;
+  display: inline-block;
+  padding-bottom: 14rpx;
+  font-size: 44rpx;
+  font-weight: 700;
+  letter-spacing: 3rpx;
+  color: var(--ink);
+}
+
+.page-title::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 10rpx;
+  bottom: 0;
+  height: 12rpx;
+  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjAiIGhlaWdodD0iMTAiIHZpZXdCb3g9IjAgMCAxMjAgMTAiPjxwYXRoIGQ9Ik0xIDYuNWM2LTUgMTItNSAxOCAwczEyIDUgMTggMCAxMi01IDE4IDAgMTIgNSAxOCAwIDEyLTUgMTggMCAxMiA1IDE4IDAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI0U0NjQzQyIgc3Ryb2tlLXdpZHRoPSIyLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvc3ZnPg==");
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+
+.page-sub {
+  margin-top: 10rpx;
+  color: var(--ink-soft);
+  font-size: 24rpx;
+  letter-spacing: 1rpx;
+}
+
+/* ---------- 纸卡 / 轻微旋转（相邻交替） ---------- */
+.paper {
+  position: relative;
+  box-sizing: border-box;
+  padding: 28rpx;
+  background-color: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.tilt-l {
+  transform: rotate(-0.8deg);
+}
+
+.tilt-r {
+  transform: rotate(0.6deg);
+}
+
+/* ---------- 胶带：半透明暖色块 + 两端斜切 ---------- */
+.tape {
+  position: absolute;
+  width: 130rpx;
+  height: 44rpx;
+  background-color: rgba(232, 180, 74, 0.35);
+  clip-path: polygon(0 0, 100% 8%, 100% 100%, 0 92%);
+  transform: rotate(-3deg);
+  pointer-events: none;
+}
+
+.tape-top {
+  top: -18rpx;
+  left: 50%;
+  margin-left: -65rpx;
+}
+
+.tape-corner {
+  top: -14rpx;
+  right: -18rpx;
+}
+
+/* ---------- 虚线分割 ---------- */
+.dashed {
+  height: 0;
+  border-top: 2rpx dashed var(--line);
+}
+
+/* ---------- 点击反馈：统一 scale(0.97)，不使用系统灰色点击态 ---------- */
+.tap {
+  transition: transform 160ms ease;
+}
+
+.tap-shrink {
+  transform: scale(0.97);
+}
+
+/* ---------- 主行动按钮（手绘感） ---------- */
+.sketch-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 24rpx 40rpx;
+  border-radius: var(--radius);
+  background-color: var(--accent);
+  box-shadow: var(--shadow);
+  color: var(--card);
+  font-size: 30rpx;
+  font-weight: 600;
+  letter-spacing: 2rpx;
+  transition: transform 160ms ease;
+}
+
+.sketch-btn-ghost {
+  background-color: transparent;
+  box-shadow: none;
+  border: 2rpx dashed var(--accent-soft);
+  color: var(--accent);
+}
+
+/* ---------- 加载骨架 ---------- */
+.skeleton {
+  border-radius: var(--radius);
+  background-color: rgba(138, 123, 109, 0.10);
+}
+
+.skeleton-line {
+  height: 24rpx;
+  margin-bottom: 16rpx;
+  border-radius: 12rpx;
+  background-color: rgba(138, 123, 109, 0.10);
+}
+
+/* ---------- 文字辅助类 ---------- */
+.muted {
+  color: var(--ink-soft);
+}
+
+.accent {
+  color: var(--accent);
+}

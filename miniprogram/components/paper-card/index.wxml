@@ -1,0 +1,4 @@
+<view class="paper-card paper tape-host">
+  <view class="tape tape-top"></view>
+  <slot></slot>
+</view>

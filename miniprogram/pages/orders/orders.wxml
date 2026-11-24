@@ -1,0 +1,89 @@
+<view class="page orders-page">
+  <view class="page-head">
+    <view class="page-title">收到的点菜</view>
+    <view class="page-sub">只有主人家能看到这一页</view>
+  </view>
+
+  <view class="count-bar paper tilt-l">
+    <text class="count-num">{{pendingCount}}</text>
+    <text class="count-text">条待处理</text>
+    <text class="count-total">共 {{total}} 条</text>
+  </view>
+
+  <view class="filters">
+    <view
+      wx:for="{{filters}}"
+      wx:key="key"
+      class="filter tap {{filter === item.key ? 'filter-on' : ''}}"
+      hover-class="tap-shrink"
+      hover-stay-time="60"
+      data-key="{{item.key}}"
+      bindtap="onSwitchFilter"
+    >{{item.label}}</view>
+  </view>
+
+  <!-- 骨架 -->
+  <block wx:if="{{skeleton}}">
+    <view class="card paper">
+      <view class="skeleton skeleton-line skeleton-cover"></view>
+      <view class="skeleton skeleton-line skeleton-title"></view>
+      <view class="skeleton skeleton-line skeleton-sub"></view>
+    </view>
+    <view class="card paper tilt-r">
+      <view class="skeleton skeleton-line skeleton-cover"></view>
+      <view class="skeleton skeleton-line skeleton-title"></view>
+      <view class="skeleton skeleton-line skeleton-sub"></view>
+    </view>
+  </block>
+
+  <!-- 列表 -->
+  <block wx:elif="{{list.length}}">
+    <view
+      wx:for="{{list}}"
+      wx:key="id"
+      class="card paper tape-host {{index % 2 === 0 ? 'tilt-l' : 'tilt-r'}}"
+    >
+      <view class="tape tape-corner"></view>
+      <view class="card-main" data-dishid="{{item.dishId}}" bindtap="onTapDish">
+        <view class="thumb">
+          <image wx:if="{{item.dishCover}}" class="thumb-img" src="{{item.dishCover}}" mode="aspectFill" lazy-load />
+          <view wx:else class="thumb-blank"><text class="thumb-mark">菜</text></view>
+        </view>
+        <view class="card-body">
+          <view class="card-top">
+            <text class="dish-name">{{item.dishName}}</text>
+            <text class="status status-{{item.status}}">{{item.statusText}}</text>
+          </view>
+          <view class="card-meta">
+            <text class="who">{{item.nickname}}</text>
+            <text class="dot">·</text>
+            <text class="time">{{item.timeText}}</text>
+          </view>
+          <view wx:if="{{item.note}}" class="note">“{{item.note}}”</view>
+        </view>
+      </view>
+      <view class="card-foot">
+        <view
+          wx:if="{{item.status === 'new'}}"
+          class="done-btn tap {{item.doneLoading ? 'is-busy' : ''}}"
+          hover-class="tap-shrink"
+          hover-stay-time="60"
+          data-id="{{item.id}}"
+          data-index="{{index}}"
+          bindtap="onDone"
+        >{{item.doneLoading ? '处理中…' : '已做'}}</view>
+        <view wx:else class="done-note">这道做过啦</view>
+      </view>
+    </view>
+
+    <view wx:if="{{loadingMore}}" class="foot-hint">正在加载更多…</view>
+    <view wx:elif="{{!hasMore}}" class="foot-hint">没有更多了</view>
+  </block>
+
+  <!-- 空状态 -->
+  <empty-state
+    wx:elif="{{!loading}}"
+    text="{{filter === 'all' ? '还没有人点菜' : '这一栏是空的'}}"
+    hint="{{filter === 'all' ? '朋友说想吃的时候，记录会出现在这里' : '换个筛选看看'}}"
+  />
+</view>

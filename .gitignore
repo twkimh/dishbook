@@ -1,0 +1,18 @@
+# 微信开发者工具的本地私有配置（每台机器不同，不提交）
+project.private.config.json
+
+# 依赖：云函数依赖由云端安装，本地不提交
+node_modules/
+cloudfunctions/**/node_modules/
+miniprogram_npm/
+
+# 构建产物 / 预览二维码
+preview.jpg
+preview.png
+
+# 系统与编辑器
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log

@@ -1,0 +1,83 @@
+.dish-tap {
+  position: relative;
+  display: block;
+  margin: 26rpx 0 38rpx;
+}
+
+/* 覆盖 .paper 的内边距：封面要贴边 */
+.dish-tap .dish-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+/* 封面为空时的 CSS 占位图块 */
+.cover {
+  position: relative;
+  width: 100%;
+  height: 320rpx;
+  background-color: var(--line);
+}
+
+.cover-img {
+  display: block;
+  width: 100%;
+  height: 320rpx;
+}
+
+.cover-blank {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 320rpx;
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(138, 123, 109, 0.12) 0,
+    rgba(138, 123, 109, 0.12) 12rpx,
+    transparent 12rpx,
+    transparent 26rpx
+  );
+}
+
+.cover-blank-mark {
+  color: var(--ink-soft);
+  font-size: 68rpx;
+  letter-spacing: 8rpx;
+  opacity: 0.55;
+}
+
+.body {
+  padding: 24rpx 28rpx 28rpx;
+}
+
+.dish-name {
+  color: var(--ink);
+  font-size: 34rpx;
+  font-weight: 700;
+  letter-spacing: 2rpx;
+}
+
+.dish-story {
+  margin-top: 10rpx;
+  color: var(--ink-soft);
+  font-size: 26rpx;
+  line-height: 1.5;
+}
+
+.dish-tags {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 16rpx;
+}
+
+.dish-meta {
+  margin-top: 16rpx;
+  padding-top: 16rpx;
+  border-top: 2rpx dashed var(--line);
+}
+
+.dish-meta-text {
+  color: var(--sage);
+  font-size: 22rpx;
+  letter-spacing: 1rpx;
+}

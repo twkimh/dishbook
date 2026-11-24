@@ -1,0 +1,13 @@
+<view class="empty">
+  <!-- 手绘感插画：一碗冒热气的菜，全部为 CSS 图形 -->
+  <view class="empty-illus">
+    <view class="steam steam-a"></view>
+    <view class="steam steam-b"></view>
+    <view class="bowl-rim"></view>
+    <view class="bowl"></view>
+    <view class="bowl-foot"></view>
+  </view>
+  <view class="empty-text">{{text}}</view>
+  <view wx:if="{{hint}}" class="empty-hint">{{hint}}</view>
+  <slot></slot>
+</view>

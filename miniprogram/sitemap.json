@@ -1,0 +1,9 @@
+{
+  "desc": "菜品手帐 sitemap",
+  "rules": [
+    {
+      "action": "allow",
+      "page": "*"
+    }
+  ]
+}

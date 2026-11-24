@@ -1,0 +1,91 @@
+<view class="page mine-page">
+  <view class="page-head">
+    <view class="page-title">我的</view>
+    <view class="page-sub">身份、主人家入口和我提交过的菜</view>
+  </view>
+
+  <!-- 身份卡片 -->
+  <view class="id-card paper tilt-l">
+    <view class="tape tape-top"></view>
+    <view class="id-row">
+      <view class="role-badge role-{{isOwner ? 'owner' : 'guest'}}">{{isOwner ? '主人家' : '访客'}}</view>
+      <view class="id-text">
+        <view class="id-name">{{nickname ? nickname : (isOwner ? '还没设置称呼' : '朋友')}}</view>
+        <view class="id-hint">{{isOwner ? '这一摊是你管的：菜谱、审核、点菜记录' : '可以浏览菜谱，也能推荐一道菜等主人家审核'}}</view>
+      </view>
+    </view>
+    <view class="edit-line tap" hover-class="tap-shrink" hover-stay-time="60" bindtap="onEditNickname">
+      <text class="edit-text">修改我的称呼</text>
+      <text class="edit-arrow">›</text>
+    </view>
+  </view>
+
+  <!-- 主人家专属入口 -->
+  <view wx:if="{{isOwner}}" class="entries">
+    <view class="entry paper tilt-r tap" hover-class="tap-shrink" hover-stay-time="60" bindtap="goOrders">
+      <view class="entry-main">
+        <view class="entry-title">点菜记录</view>
+        <view class="entry-sub">朋友想吃的菜都记在这儿</view>
+      </view>
+      <view class="entry-arrow">›</view>
+    </view>
+    <view class="entry paper tilt-l tap" hover-class="tap-shrink" hover-stay-time="60" bindtap="goReview">
+      <view class="entry-main">
+        <view class="entry-title">待审核</view>
+        <view class="entry-sub">朋友推荐过来的菜</view>
+      </view>
+      <view wx:if="{{pendingCount > 0}}" class="badge">{{pendingText}}</view>
+      <view class="entry-arrow">›</view>
+    </view>
+  </view>
+
+  <!-- 我的提交 -->
+  <view class="section-head">
+    <text class="section-title">我的提交</text>
+    <text class="section-count">{{total}} 道</text>
+  </view>
+
+  <block wx:if="{{skeleton}}">
+    <view class="row paper">
+      <view class="skeleton skeleton-line skeleton-cover"></view>
+      <view class="row-body">
+        <view class="skeleton skeleton-line skeleton-title"></view>
+        <view class="skeleton skeleton-line skeleton-sub"></view>
+      </view>
+    </view>
+    <view class="row paper tilt-r">
+      <view class="skeleton skeleton-line skeleton-cover"></view>
+      <view class="row-body">
+        <view class="skeleton skeleton-line skeleton-title"></view>
+        <view class="skeleton skeleton-line skeleton-sub"></view>
+      </view>
+    </view>
+  </block>
+
+  <block wx:elif="{{list.length}}">
+    <view
+      wx:for="{{list}}"
+      wx:key="id"
+      class="row paper {{index % 2 === 0 ? 'tilt-l' : 'tilt-r'}}"
+      data-id="{{item.id}}"
+      bindtap="goDish"
+    >
+      <view class="row-cover">
+        <image wx:if="{{item.cover}}" class="row-img" src="{{item.cover}}" mode="aspectFill" lazy-load />
+        <view wx:else class="row-blank"><text class="row-mark">菜</text></view>
+      </view>
+      <view class="row-body">
+        <view class="row-top">
+          <text class="row-name">{{item.name}}</text>
+          <text class="status status-{{item.status}}">{{item.statusText}}</text>
+        </view>
+        <view class="row-time">{{item.timeText}}</view>
+      </view>
+    </view>
+
+    <view wx:if="{{loadingMore}}" class="foot-hint">正在加载更多…</view>
+    <view wx:elif="{{!hasMore}}" class="foot-hint">没有更多了</view>
+  </block>
+
+  <empty-state wx:elif="{{!loading}}" text="还没有提交过菜" hint="去「加菜」页把做过的菜记下来" />
+</view>

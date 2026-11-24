@@ -1,0 +1,17 @@
+/* 设计变量 · 手绘手帐风（SPEC §5）
+ * 唯一允许出现颜色字面量的文件；其余样式一律 var(--x)。
+ * 变量作用域：page，因此每个页面根节点及其子树（含 custom-tab-bar）都能继承。
+ */
+page {
+  --paper: #FAF3E7;
+  --card: #FFFDF8;
+  --ink: #3B302A;
+  --ink-soft: #8A7B6D;
+  --accent: #E4643C;
+  --accent-soft: #F8D3BC;
+  --sage: #7C9A6D;
+  --mustard: #E8B44A;
+  --line: #EADFCB;
+  --radius: 28rpx;
+  --shadow: 0 8rpx 24rpx rgba(90, 62, 40, 0.10);
+}

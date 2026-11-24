@@ -1,0 +1,150 @@
+<view class="page add-page">
+  <view class="page-head">
+    <view class="page-title">{{isOwner ? '记一道菜' : '推荐一道菜'}}</view>
+    <view class="page-sub">{{isOwner ? '提交后直接进你的菜谱' : '交给主人家审核，通过了才会出现在菜谱里'}}</view>
+  </view>
+
+  <view wx:if="{{!isOwner}}" class="notice paper tilt-l">
+    <text class="notice-text">你是访客：这道菜会先进「待审核」，主人家点了通过才会上架，不是立刻生效。</text>
+  </view>
+
+  <!-- 菜名 -->
+  <view class="field paper tilt-r">
+    <view class="field-head">
+      <text class="label">菜名<text class="required"> *</text></text>
+      <text class="counter {{nameLen > nameMax ? 'counter-over' : ''}}">{{nameLen}}/{{nameMax}}</text>
+    </view>
+    <input
+      class="input"
+      value="{{name}}"
+      maxlength="{{nameMax}}"
+      placeholder="比如 番茄炒蛋"
+      placeholder-class="ph"
+      bindinput="onNameInput"
+    />
+  </view>
+
+  <!-- 封面 -->
+  <view class="field paper tilt-l">
+    <view class="field-head">
+      <text class="label">封面</text>
+      <text class="counter">可不选</text>
+    </view>
+    <view wx:if="{{!cover.temp}}" class="slot tap" hover-class="tap-shrink" hover-stay-time="60" bindtap="onChooseCover">
+      <text class="slot-plus">＋</text>
+      <text class="slot-text">选一张封面</text>
+    </view>
+    <view wx:else class="cover-wrap">
+      <image class="cover-img" src="{{cover.temp}}" mode="aspectFill" />
+      <view wx:if="{{cover.uploading}}" class="mask">
+        <text class="mask-text">上传中 {{cover.progress}}%</text>
+      </view>
+      <view wx:if="{{!cover.uploading}}" class="cover-actions">
+        <view class="mini-btn tap" hover-class="tap-shrink" hover-stay-time="60" bindtap="onChooseCover">换一张</view>
+        <view class="mini-btn tap" hover-class="tap-shrink" hover-stay-time="60" bindtap="onRemoveCover">去掉</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 其他图片 -->
+  <view class="field paper tilt-r">
+    <view class="field-head">
+      <text class="label">其他图片</text>
+      <text class="counter">{{images.length}}/{{imagesMax}}</text>
+    </view>
+    <view class="grid">
+      <view wx:for="{{images}}" wx:key="key" class="grid-item">
+        <image class="grid-img" src="{{item.temp}}" mode="aspectFill" />
+        <view wx:if="{{item.uploading}}" class="mask">
+          <text class="mask-text">{{item.progress}}%</text>
+        </view>
+        <view wx:else class="grid-remove" data-index="{{index}}" catchtap="onRemoveImage">×</view>
+      </view>
+      <view
+        wx:if="{{images.length < imagesMax}}"
+        class="grid-item grid-add tap"
+        hover-class="tap-shrink"
+        hover-stay-time="60"
+        bindtap="onChooseImages"
+      >
+        <text class="slot-plus">＋</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 一句话说明 -->
+  <view class="field paper tilt-l">
+    <view class="field-head">
+      <text class="label">一句话说明</text>
+      <text class="counter {{storyLen > storyMax ? 'counter-over' : ''}}">{{storyLen}}/{{storyMax}}</text>
+    </view>
+    <textarea
+      class="textarea"
+      value="{{story}}"
+      maxlength="{{storyMax}}"
+      placeholder="这道菜的来历，或者做法上的一句话"
+      placeholder-class="ph"
+      auto-height
+      bindinput="onStoryInput"
+    />
+  </view>
+
+  <!-- 标签 -->
+  <view class="field paper tilt-r">
+    <view class="field-head">
+      <text class="label">标签</text>
+      <text class="counter">{{tags.length}}/{{tagCountMax}}</text>
+    </view>
+    <view wx:if="{{tags.length}}" class="pills">
+      <view wx:for="{{tags}}" wx:key="*this" class="pill">
+        <text class="pill-text">{{item}}</text>
+        <text class="pill-x" data-index="{{index}}" catchtap="onRemoveTag">×</text>
+      </view>
+    </view>
+    <view class="tag-row">
+      <input
+        class="tag-input"
+        value="{{tagInput}}"
+        maxlength="{{tagLenMax}}"
+        placeholder="比如 家常、快手菜"
+        placeholder-class="ph"
+        confirm-type="done"
+        bindinput="onTagInput"
+        bindconfirm="onTagConfirm"
+      />
+      <view class="tag-add tap" hover-class="tap-shrink" hover-stay-time="60" bindtap="onAddTag">＋</view>
+    </view>
+    <view class="field-hint">最多 5 个，每个不超过 8 个字</view>
+  </view>
+
+  <!-- 访客昵称 -->
+  <view wx:if="{{!isOwner}}" class="field paper tilt-l">
+    <view class="field-head">
+      <text class="label">怎么称呼你</text>
+      <text class="counter">可选</text>
+    </view>
+    <input
+      class="input"
+      value="{{nickname}}"
+      maxlength="20"
+      placeholder="主人家审核时会看到这个称呼"
+      placeholder-class="ph"
+      bindinput="onNicknameInput"
+      bindblur="onNicknameBlur"
+    />
+  </view>
+
+  <view class="submit-bar">
+    <view
+      class="sketch-btn tap {{canSubmit ? '' : 'is-disabled'}}"
+      hover-class="{{canSubmit ? 'tap-shrink' : ''}}"
+      hover-stay-time="60"
+      bindtap="onSubmit"
+    >
+      <text wx:if="{{uploading}}">上传中…</text>
+      <text wx:elif="{{submitting}}">提交中…</text>
+      <text wx:else>{{isOwner ? '加入菜谱' : '提交审核'}}</text>
+    </view>
+    <view class="submit-hint">{{isOwner ? '主人家提交后直接上架' : '访客提交后需要主人家审核通过才上架'}}</view>
+  </view>
+</view>

@@ -1,0 +1,88 @@
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 96rpx 40rpx 72rpx;
+  text-align: center;
+}
+
+.empty-illus {
+  position: relative;
+  width: 240rpx;
+  height: 200rpx;
+  margin-bottom: 28rpx;
+}
+
+/* 碗身：上半开口的圆弧 */
+.bowl {
+  position: absolute;
+  left: 30rpx;
+  bottom: 34rpx;
+  width: 180rpx;
+  height: 88rpx;
+  box-sizing: border-box;
+  border: 4rpx solid var(--ink-soft);
+  border-top: none;
+  border-radius: 0 0 180rpx 180rpx;
+  background-color: rgba(248, 211, 188, 0.45);
+}
+
+/* 碗口：一条略微弯的手绘线 */
+.bowl-rim {
+  position: absolute;
+  left: 18rpx;
+  bottom: 118rpx;
+  width: 204rpx;
+  height: 12rpx;
+  box-sizing: border-box;
+  border-top: 4rpx solid var(--ink-soft);
+  border-radius: 50%;
+}
+
+/* 碗足 */
+.bowl-foot {
+  position: absolute;
+  left: 100rpx;
+  bottom: 22rpx;
+  width: 40rpx;
+  height: 14rpx;
+  box-sizing: border-box;
+  border-bottom: 4rpx solid var(--ink-soft);
+  border-radius: 0 0 16rpx 16rpx;
+}
+
+/* 热气：两条斜向短线 */
+.steam {
+  position: absolute;
+  width: 5rpx;
+  height: 46rpx;
+  border-radius: 5rpx;
+  background-color: var(--line);
+}
+
+.steam-a {
+  left: 88rpx;
+  bottom: 130rpx;
+  transform: rotate(-12deg);
+}
+
+.steam-b {
+  left: 146rpx;
+  bottom: 134rpx;
+  height: 38rpx;
+  transform: rotate(14deg);
+}
+
+.empty-text {
+  color: var(--ink);
+  font-size: 30rpx;
+  font-weight: 600;
+  letter-spacing: 2rpx;
+}
+
+.empty-hint {
+  margin-top: 12rpx;
+  color: var(--ink-soft);
+  font-size: 24rpx;
+  letter-spacing: 1rpx;
+}

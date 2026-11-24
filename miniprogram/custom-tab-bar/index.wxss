@@ -1,0 +1,136 @@
+/* 自定义 tabBar：纸卡底 + 虚线分隔 + 纯 CSS 图标（无任何图片素材） */
+.tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  padding: 10rpx 0 8rpx;
+  padding-bottom: calc(8rpx + env(safe-area-inset-bottom));
+  background-color: var(--card);
+  border-top: 2rpx dashed var(--line);
+  box-shadow: 0 -6rpx 20rpx rgba(90, 62, 40, 0.06);
+}
+
+.tab-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8rpx 0;
+  transition: transform 160ms ease;
+}
+
+/* 点击反馈：统一 scale(0.97)，不用系统默认灰色点击态 */
+.tab-shrink {
+  transform: scale(0.97);
+}
+
+.tab-text {
+  margin-top: 6rpx;
+  color: var(--ink-soft);
+  font-size: 20rpx;
+  letter-spacing: 1rpx;
+}
+
+.tab-on {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ---------- 图标容器：尺寸统一，颜色走 currentColor ---------- */
+.icon {
+  position: relative;
+  width: 44rpx;
+  height: 44rpx;
+  color: var(--ink-soft);
+}
+
+.icon-on {
+  color: var(--accent);
+}
+
+.icon-inner {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+}
+
+/* 菜谱：一张纸卡 + 两道横线 */
+.icon-index .icon-inner::before {
+  content: '';
+  position: absolute;
+  left: 6rpx;
+  top: 4rpx;
+  width: 32rpx;
+  height: 36rpx;
+  box-sizing: border-box;
+  border: 3rpx solid currentColor;
+  border-radius: 6rpx;
+}
+
+.icon-index .icon-inner::after {
+  content: '';
+  position: absolute;
+  left: 12rpx;
+  top: 14rpx;
+  width: 20rpx;
+  height: 3rpx;
+  background-color: currentColor;
+  box-shadow: 0 10rpx 0 currentColor;
+}
+
+/* 加菜：圆圈里一个加号 */
+.icon-add .icon-inner::before {
+  content: '';
+  position: absolute;
+  left: 7rpx;
+  top: 7rpx;
+  width: 30rpx;
+  height: 30rpx;
+  box-sizing: border-box;
+  border: 3rpx solid currentColor;
+  border-radius: 50%;
+}
+
+.icon-add .icon-inner::after {
+  content: '';
+  position: absolute;
+  left: 12rpx;
+  top: 21rpx;
+  width: 20rpx;
+  height: 3rpx;
+  background-color: currentColor;
+  box-shadow: 0 -9rpx 0 currentColor;
+}
+
+/* 我的：一个头 + 一道肩 */
+.icon-mine .icon-inner::before {
+  content: '';
+  position: absolute;
+  left: 15rpx;
+  top: 5rpx;
+  width: 14rpx;
+  height: 14rpx;
+  box-sizing: border-box;
+  border: 3rpx solid currentColor;
+  border-radius: 50%;
+}
+
+.icon-mine .icon-inner::after {
+  content: '';
+  position: absolute;
+  left: 8rpx;
+  bottom: 6rpx;
+  width: 28rpx;
+  height: 14rpx;
+  box-sizing: border-box;
+  border: 3rpx solid currentColor;
+  border-bottom: none;
+  border-radius: 14rpx 14rpx 0 0;
+}

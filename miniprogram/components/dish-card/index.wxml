@@ -1,0 +1,21 @@
+<view class="dish-tap tap" hover-class="tap-shrink" hover-stay-time="60" bindtap="onTap">
+  <view class="tape tape-top"></view>
+  <view class="dish-card paper {{index % 2 === 0 ? 'tilt-l' : 'tilt-r'}}">
+    <view class="cover">
+      <image wx:if="{{dish.cover}}" class="cover-img" src="{{dish.cover}}" mode="aspectFill" lazy-load />
+      <view wx:else class="cover-blank">
+        <text class="cover-blank-mark">菜</text>
+      </view>
+    </view>
+    <view class="body">
+      <view class="dish-name">{{dish.name}}</view>
+      <view wx:if="{{dish.story}}" class="dish-story">{{dish.story}}</view>
+      <view wx:if="{{dish.tags && dish.tags.length}}" class="dish-tags">
+        <tag-chip wx:for="{{dish.tags}}" wx:key="*this" text="{{item}}" />
+      </view>
+      <view wx:if="{{dish.cookedCount}}" class="dish-meta">
+        <text class="dish-meta-text">{{dish.cookedCount}} 人想吃过</text>
+      </view>
+    </view>
+  </view>
+</view>

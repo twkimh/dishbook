@@ -1,0 +1,78 @@
+<view class="page review-page">
+  <view class="page-head">
+    <view class="page-title">待审核</view>
+    <view class="page-sub">只有主人家能看到这一页</view>
+  </view>
+
+  <view class="count-bar paper tilt-l">
+    <text class="count-num">{{total}}</text>
+    <text class="count-text">道菜等着你过一眼</text>
+  </view>
+
+  <!-- 骨架 -->
+  <block wx:if="{{skeleton}}">
+    <view class="card paper">
+      <view class="skeleton skeleton-line skeleton-cover"></view>
+      <view class="skeleton skeleton-line skeleton-title"></view>
+      <view class="skeleton skeleton-line skeleton-sub"></view>
+    </view>
+    <view class="card paper tilt-r">
+      <view class="skeleton skeleton-line skeleton-cover"></view>
+      <view class="skeleton skeleton-line skeleton-title"></view>
+      <view class="skeleton skeleton-line skeleton-sub"></view>
+    </view>
+  </block>
+
+  <!-- 列表 -->
+  <block wx:elif="{{list.length}}">
+    <view
+      wx:for="{{list}}"
+      wx:for-item="dish"
+      wx:for-index="dishIndex"
+      wx:key="id"
+      class="card paper {{dishIndex % 2 === 0 ? 'tilt-l' : 'tilt-r'}}"
+    >
+      <view class="cover-wrap">
+        <image wx:if="{{dish.cover}}" class="cover-img" src="{{dish.cover}}" mode="aspectFill" lazy-load />
+        <view wx:else class="cover-blank"><text class="cover-mark">菜</text></view>
+      </view>
+
+      <view class="dish-name">{{dish.name}}</view>
+
+      <view class="meta">
+        <text class="who">{{dish.nickname}}</text>
+        <text class="dot">·</text>
+        <text class="time">{{dish.timeText}}</text>
+      </view>
+
+      <view wx:if="{{dish.story}}" class="story">{{dish.story}}</view>
+
+      <view wx:if="{{dish.tags.length}}" class="tags">
+        <tag-chip wx:for="{{dish.tags}}" wx:key="*this" text="{{item}}" tone="mustard" />
+      </view>
+
+      <view class="actions">
+        <view
+          class="btn btn-reject tap {{dish.acting ? 'is-busy' : ''}}"
+          hover-class="tap-shrink"
+          hover-stay-time="60"
+          data-index="{{dishIndex}}"
+          bindtap="onReject"
+        >驳回</view>
+        <view
+          class="btn btn-pass tap {{dish.acting ? 'is-busy' : ''}}"
+          hover-class="tap-shrink"
+          hover-stay-time="60"
+          data-index="{{dishIndex}}"
+          bindtap="onPass"
+        >{{dish.acting ? '处理中…' : '通过'}}</view>
+      </view>
+    </view>
+
+    <view wx:if="{{loadingMore}}" class="foot-hint">正在加载更多…</view>
+    <view wx:elif="{{!hasMore}}" class="foot-hint">没有更多了</view>
+  </block>
+
+  <!-- 空状态 -->
+  <empty-state wx:elif="{{!loading}}" text="没有待审核的菜" hint="朋友提交的菜会先到这里，通过了才上架" />
+</view>

@@ -1,0 +1,29 @@
+.chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 240rpx;
+  margin: 0 12rpx 12rpx 0;
+  padding: 6rpx 20rpx;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+  letter-spacing: 1rpx;
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chip-accent {
+  background-color: var(--accent-soft);
+  color: var(--ink);
+}
+
+.chip-sage {
+  background-color: rgba(124, 154, 109, 0.18);
+  color: var(--sage);
+}
+
+.chip-mustard {
+  background-color: rgba(232, 180, 74, 0.22);
+  color: var(--ink);
+}

@@ -1,0 +1,8 @@
+.paper-card {
+  margin-bottom: 36rpx;
+}
+
+/* 胶带压在纸卡上沿，需给外层留出溢出空间 */
+.paper-card.tape-host {
+  margin-top: 18rpx;
+}

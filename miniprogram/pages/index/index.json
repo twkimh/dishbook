@@ -1,0 +1,9 @@
+{
+  "navigationBarTitleText": "菜品手帐",
+  "enablePullDownRefresh": true,
+  "backgroundTextStyle": "dark",
+  "usingComponents": {
+    "dish-card": "/components/dish-card/index",
+    "empty-state": "/components/empty-state/index"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "navigationBarTitleText": "待审核",
+  "enablePullDownRefresh": true,
+  "backgroundTextStyle": "dark",
+  "usingComponents": {
+    "empty-state": "/components/empty-state/index",
+    "tag-chip": "/components/tag-chip/index"
+  }
+}

@@ -1,0 +1,286 @@
+/* 加菜页（tab 页，底部留给 custom-tab-bar）
+ * 只允许 var(--x) 与 rgba()，不出现颜色字面量。
+ */
+
+.add-page .page-head {
+  margin-bottom: 24rpx;
+}
+
+/* ---------- 访客提示条 ---------- */
+.notice {
+  margin-bottom: 28rpx;
+  padding: 22rpx 26rpx;
+  border-left: 8rpx solid var(--mustard);
+}
+
+.notice-text {
+  color: var(--ink-soft);
+  font-size: 24rpx;
+  line-height: 1.6;
+}
+
+/* ---------- 表单块 ---------- */
+.field {
+  margin-bottom: 28rpx;
+}
+
+.field-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 16rpx;
+}
+
+.label {
+  color: var(--ink);
+  font-size: 28rpx;
+  font-weight: 600;
+  letter-spacing: 2rpx;
+}
+
+.required {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.counter {
+  color: var(--ink-soft);
+  font-size: 22rpx;
+  letter-spacing: 1rpx;
+}
+
+.counter-over {
+  color: var(--accent);
+}
+
+.field-hint {
+  margin-top: 14rpx;
+  color: var(--ink-soft);
+  font-size: 22rpx;
+}
+
+.ph {
+  color: var(--ink-soft);
+  font-size: 26rpx;
+}
+
+/* 注意：微信 <input> 自带默认高度且很小，配合 box-sizing:border-box 时
+ * 绝不能给上下 padding —— 否则内容区被吃光、文字上下被裁。
+ * 统一做法：上下 padding 归零，用 height + line-height 撑开并垂直居中。 */
+.input,
+.tag-input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0 24rpx;
+  border-radius: 20rpx;
+  background-color: rgba(234, 223, 203, 0.45);
+  color: var(--ink);
+  font-size: 28rpx;
+}
+
+.input {
+  height: 88rpx;
+  line-height: 88rpx;
+}
+
+.textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 130rpx;
+  padding: 20rpx 24rpx;
+  border-radius: 20rpx;
+  background-color: rgba(234, 223, 203, 0.45);
+  color: var(--ink);
+  font-size: 28rpx;
+  line-height: 1.6;
+}
+
+/* ---------- 空槽 / 封面 ---------- */
+.slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 220rpx;
+  border: 3rpx dashed var(--line);
+  border-radius: 20rpx;
+  background-color: rgba(234, 223, 203, 0.28);
+}
+
+.slot-plus {
+  color: var(--accent);
+  font-size: 44rpx;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.slot-text {
+  margin-top: 6rpx;
+  color: var(--ink-soft);
+  font-size: 24rpx;
+}
+
+.cover-wrap {
+  position: relative;
+  height: 320rpx;
+  border-radius: 20rpx;
+  overflow: hidden;
+}
+
+.cover-img {
+  width: 100%;
+  height: 100%;
+  background-color: rgba(234, 223, 203, 0.45);
+}
+
+.mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(59, 48, 42, 0.42);
+}
+
+.mask-text {
+  color: var(--card);
+  font-size: 24rpx;
+  letter-spacing: 1rpx;
+}
+
+.cover-actions {
+  position: absolute;
+  right: 16rpx;
+  bottom: 16rpx;
+  display: flex;
+}
+
+.mini-btn {
+  margin-left: 12rpx;
+  padding: 8rpx 22rpx;
+  border-radius: 999rpx;
+  background-color: rgba(255, 253, 248, 0.92);
+  color: var(--ink);
+  font-size: 22rpx;
+}
+
+/* ---------- 其他图片宫格 ---------- */
+.grid {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.grid-item {
+  position: relative;
+  width: 150rpx;
+  height: 150rpx;
+  margin: 0 14rpx 14rpx 0;
+  border-radius: 18rpx;
+  overflow: hidden;
+  background-color: rgba(234, 223, 203, 0.28);
+}
+
+.grid-img {
+  width: 100%;
+  height: 100%;
+}
+
+.grid-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3rpx dashed var(--line);
+  box-sizing: border-box;
+}
+
+.grid-remove {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 44rpx;
+  height: 44rpx;
+  border-bottom-left-radius: 18rpx;
+  background-color: rgba(59, 48, 42, 0.55);
+  color: var(--card);
+  font-size: 28rpx;
+  line-height: 44rpx;
+  text-align: center;
+}
+
+/* ---------- 标签胶囊 ---------- */
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  margin-bottom: 8rpx;
+}
+
+.pill {
+  display: flex;
+  align-items: center;
+  margin: 0 12rpx 12rpx 0;
+  padding: 6rpx 20rpx;
+  border-radius: 999rpx;
+  background-color: var(--accent-soft);
+}
+
+.pill-text {
+  max-width: 200rpx;
+  color: var(--ink);
+  font-size: 22rpx;
+  letter-spacing: 1rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pill-x {
+  margin-left: 12rpx;
+  color: var(--ink-soft);
+  font-size: 26rpx;
+  line-height: 1;
+}
+
+.tag-row {
+  display: flex;
+  align-items: center;
+}
+
+.tag-input {
+  flex: 1;
+  height: 76rpx;
+  line-height: 76rpx;
+}
+
+.tag-add {
+  width: 76rpx;
+  height: 76rpx;
+  margin-left: 14rpx;
+  border-radius: 50%;
+  background-color: var(--accent);
+  color: var(--card);
+  font-size: 36rpx;
+  font-weight: 700;
+  line-height: 76rpx;
+  text-align: center;
+}
+
+/* ---------- 提交 ---------- */
+.submit-bar {
+  margin-top: 44rpx;
+}
+
+.is-disabled {
+  background-color: var(--ink-soft);
+  opacity: 0.55;
+  box-shadow: none;
+}
+
+.submit-hint {
+  margin-top: 18rpx;
+  color: var(--ink-soft);
+  font-size: 22rpx;
+  text-align: center;
+}

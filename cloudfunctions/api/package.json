@@ -1,0 +1,10 @@
+{
+  "name": "api",
+  "version": "1.0.0",
+  "description": "菜品手帐 · 唯一云函数（按 action 路由）",
+  "main": "index.js",
+  "private": true,
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

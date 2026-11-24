@@ -1,0 +1,95 @@
+<view class="page index-page">
+  <view class="page-head">
+    <view class="page-title">今日菜谱</view>
+    <view class="page-sub">主人家做过的菜，都会收在这里</view>
+  </view>
+
+  <!-- 搜索框：输入后 300ms 防抖再请求 -->
+  <view class="search paper">
+    <view class="search-icon"></view>
+    <input
+      class="search-input"
+      type="text"
+      value="{{keyword}}"
+      placeholder="搜一道菜的名字"
+      placeholder-class="search-placeholder"
+      confirm-type="search"
+      bindinput="onKeywordInput"
+      bindconfirm="onKeywordConfirm"
+    />
+    <view
+      wx:if="{{keyword}}"
+      class="search-clear tap"
+      hover-class="tap-shrink"
+      hover-stay-time="60"
+      catchtap="onClearKeyword"
+    >清空</view>
+  </view>
+
+  <!-- 标签筛选条：横向滚动，点选过滤，再点取消 -->
+  <scroll-view wx:if="{{tags.length}}" class="tag-bar" scroll-x>
+    <view class="tag-bar-track">
+      <view
+        wx:for="{{tags}}"
+        wx:key="*this"
+        class="tag-option tap {{activeTag === item ? 'tag-option-on' : ''}}"
+        hover-class="tap-shrink"
+        hover-stay-time="60"
+        data-tag="{{item}}"
+        bindtap="onTagTap"
+      >{{item}}</view>
+    </view>
+  </scroll-view>
+
+  <!-- 首屏骨架 -->
+  <view wx:if="{{firstLoading && !list.length}}" class="grid">
+    <view class="column">
+      <view class="skeleton-card" wx:for="{{[0, 1]}}" wx:key="*this">
+        <view class="skeleton skeleton-cover"></view>
+        <view class="skeleton-body">
+          <view class="skeleton-line"></view>
+          <view class="skeleton-line skeleton-line-short"></view>
+        </view>
+      </view>
+    </view>
+    <view class="column">
+      <view class="skeleton-card" wx:for="{{[0, 1]}}" wx:key="*this">
+        <view class="skeleton skeleton-cover"></view>
+        <view class="skeleton-body">
+          <view class="skeleton-line"></view>
+          <view class="skeleton-line skeleton-line-short"></view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view wx:elif="{{list.length}}" class="grid">
+    <!-- 两列瀑布：index 交给 dish-card，用于相邻卡片交替倾斜 -->
+    <view class="column">
+      <dish-card
+        wx:for="{{leftColumn}}"
+        wx:key="_id"
+        dish="{{item}}"
+        index="{{index * 2}}"
+        bindtap="onCardTap"
+      />
+    </view>
+    <view class="column">
+      <dish-card
+        wx:for="{{rightColumn}}"
+        wx:key="_id"
+        dish="{{item}}"
+        index="{{index * 2 + 1}}"
+        bindtap="onCardTap"
+      />
+    </view>
+  </view>
+
+  <empty-state wx:else text="{{emptyText}}" hint="{{emptyHint}}" />
+
+  <!-- 触底状态 -->
+  <view wx:if="{{list.length}}" class="list-foot">
+    <view wx:if="{{loadingMore}}" class="foot-text">正在往下翻…</view>
+    <view wx:elif="{{endReached}}" class="foot-text foot-end">到底啦</view>
+  </view>
+</view>
