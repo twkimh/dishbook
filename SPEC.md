@@ -80,6 +80,15 @@ dishbook/
 - `subscribeDataMap` 是订阅消息字段映射表（值取 `dishName|name|nickname|note|dishId|time|count` token）。为 `null` 时按 `{thing1,thing2,thing3}` 兜底尝试，发不出去只记 `failed`，不影响下单。
 - `ownerNickname` 目前**没有读写通道**，保持空串；「我的」页展示的称呼取本地缓存 `nickname`。
 
+### 集合 `users`（用户资料）
+```js
+{ _id: <openid>, nickname: string, avatar: string /* 云存储 fileID，可为空串 */, updatedAt: number }
+```
+- `_id` 直接用 openid；openid 只来自 `ctx.openid`，绝不从 payload 取
+- 该集合需在云开发控制台手动创建，权限同样设 `ADMINONLY`
+- `avatar` 只接受 `cloud://` 开头的 fileID，其它值（外链）一律归一为空串
+- 快捷入口：`users` 里存的是「当前资料」，而 `dishes.submitter` / `orders.orderer` 存的是**提交时快照**——改了头像不会追溯修改历史记录，这是刻意的最小实现
+
 ## 4. 云函数 `api` 契约
 
 调用方式：`wx.cloud.callFunction({ name: 'api', data: { action, payload } })`
@@ -106,6 +115,8 @@ dishbook/
 | `order.create` | `{ dishId, note }` | 所有人 | `{ id, notifyState }`；同时 `cookedCount + 1` |
 | `order.list` | `{ page, pageSize, status? }` | 主人家 | `{ list, total, hasMore }` |
 | `order.done` | `{ id }` | 主人家 | `{}` |
+| `profile.get` | `{}` | 所有人 | `{ nickname, avatar }`；文档不存在返回两个空串，不报错 |
+| `profile.save` | `{ nickname?, avatar? }` | 所有人 | `{ nickname, avatar }`（upsert 到 `users`）；字段整体缺省时保留库中旧值，显式传 `''` 才清空 |
 
 **内容安全**：`dish.create` 与 `order.create` 必须对用户可填文本（`name` / `story` / `note` / `tags`）调用 `cloud.openapi.security.msgSecCheck`（v2，`scene` 用 2）。命中违规返回 `code: 'INVALID'` 且**不落库**。接口报错时放行（不能因安全接口抖动阻断正常用户），但要打日志。
 

@@ -63,6 +63,22 @@ function login() {
   return call('login', {});
 }
 
+// profileGet() -> { nickname, avatar }
+// avatar 是云存储 fileID 或后端转好的 https 临时链接，两者都能直接用于 <image src>
+function profileGet() {
+  return call('profile.get', {});
+}
+
+// profileSave({ nickname, avatar }) -> { nickname, avatar }
+// avatar 传云存储 fileID（可为空串）
+function profileSave(profile) {
+  var p = profile || {};
+  return call('profile.save', {
+    nickname: p.nickname || '',
+    avatar: p.avatar || ''
+  });
+}
+
 /* ---------- 菜品 ---------- */
 
 // dishList({ keyword?, tag?, page=1, pageSize=20 }) -> { list, total, hasMore }
@@ -134,6 +150,8 @@ function orderDone(id) {
 
 module.exports = {
   login: login,
+  profileGet: profileGet,
+  profileSave: profileSave,
   dishList: dishList,
   dishGet: dishGet,
   dishCreate: dishCreate,

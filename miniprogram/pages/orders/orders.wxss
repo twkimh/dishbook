@@ -143,9 +143,32 @@
 }
 
 .card-meta {
+  display: flex;
+  align-items: center;
   margin-top: 10rpx;
   color: var(--ink-soft);
   font-size: 22rpx;
+}
+
+/* 点菜人头像：48rpx 圆，取不到就落到纯 CSS 占位 */
+.who-avatar {
+  flex: 0 0 48rpx;
+  width: 48rpx;
+  height: 48rpx;
+  margin-right: 12rpx;
+  border-radius: 50%;
+  background-color: rgba(234, 223, 203, 0.75);
+}
+
+.who-avatar-blank {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  background-color: var(--accent-soft);
+  color: var(--ink);
+  font-size: 22rpx;
+  font-weight: 600;
 }
 
 .who {

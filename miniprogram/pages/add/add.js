@@ -47,6 +47,17 @@ function writeNickname(value) {
   }
 }
 
+// 头像在本地缓存里存的是云存储 fileID（不是临时链接）
+function readAvatar() {
+  try {
+    var stored = wx.getStorageSync('avatar');
+    return typeof stored === 'string' ? stored : '';
+  } catch (err) {
+    console.error('[add] 读取头像失败', err);
+    return '';
+  }
+}
+
 function extOf(filePath) {
   var matched = /\.([a-zA-Z0-9]+)(?:\?|$)/.exec(filePath || '');
   var ext = matched ? matched[1].toLowerCase() : 'jpg';
@@ -508,7 +519,9 @@ Page({
       cover: this.data.cover.id || '',
       images: images,
       story: story,
-      tags: this.data.tags.slice()
+      tags: this.data.tags.slice(),
+      // 头像昵称一起进 submitter；本地没设置过就是空串，后端按空处理
+      avatar: readAvatar()
     };
 
     var isOwner = this.data.isOwner;

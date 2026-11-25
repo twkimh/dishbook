@@ -40,6 +40,15 @@
       <view class="dish-name">{{dish.name}}</view>
 
       <view class="meta">
+        <image
+          wx:if="{{dish.avatar}}"
+          class="who-avatar"
+          src="{{dish.avatar}}"
+          mode="aspectFill"
+          binderror="onAvatarError"
+          data-index="{{dishIndex}}"
+        />
+        <view wx:else class="who-avatar who-avatar-blank">{{dish.avatarText}}</view>
         <text class="who">{{dish.nickname}}</text>
         <text class="dot">·</text>
         <text class="time">{{dish.timeText}}</text>

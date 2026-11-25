@@ -63,13 +63,17 @@ function resolveRole() {
 function decorate(raw) {
   var item = raw || {};
   var submitter = item.submitter || {};
+  var nickname = submitter.nickname || '一位朋友';
   return {
     id: item._id || item.id || '',
     name: item.name || '未命名',
     cover: item.cover || '',
     story: item.story || '',
     tags: item.tags || [],
-    nickname: submitter.nickname || '一位朋友',
+    nickname: nickname,
+    // 提交人头像：后端返回的已是可直接显示的 https 临时链接
+    avatar: submitter.avatar || '',
+    avatarText: nickname.charAt(0),
     timeText: format.formatRelativeTime(item.createdAt),
     acting: false
   };
@@ -166,6 +170,17 @@ Page({
 
   onPass: function (event) {
     this.judge(Number(event.currentTarget.dataset.index), true);
+  },
+
+  // 头像加载失败：清掉这一条的 src，落回纯 CSS 圆形占位
+  onAvatarError: function (event) {
+    var index = Number(event.currentTarget.dataset.index);
+    if (!(index >= 0) || index >= this.data.list.length) {
+      return;
+    }
+    var patch = {};
+    patch['list[' + index + '].avatar'] = '';
+    this.setData(patch);
   },
 
   onReject: function (event) {

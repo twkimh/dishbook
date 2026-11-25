@@ -5,7 +5,7 @@
   "projectname": "dishbook",
   "description": "菜品手帐",
   "appid": "wx43d8fff701719636",
-  "libVersion": "2.20.0",
+  "libVersion": "3.18.0",
   "setting": {
     "urlCheck": false,
     "es6": true,

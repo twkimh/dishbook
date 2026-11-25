@@ -14,6 +14,8 @@ const COLLECTIONS = {
   DISHES: 'dishes',
   ORDERS: 'orders',
   META: 'meta',
+  // 用户资料集合：_id 直接用 openid，由用户在控制台手动创建，代码只读写
+  USERS: 'users',
 };
 
 const META_ID = 'app';
@@ -133,6 +135,11 @@ function orders() {
   return db.collection(COLLECTIONS.ORDERS);
 }
 
+/** 用户资料集合句柄：_id 即 openid。 */
+function users() {
+  return db.collection(COLLECTIONS.USERS);
+}
+
 const serverDate = function () {
   return Date.now();
 };
@@ -150,5 +157,6 @@ module.exports = {
   resolveContext: resolveContext,
   dishes: dishes,
   orders: orders,
+  users: users,
   now: serverDate,
 };

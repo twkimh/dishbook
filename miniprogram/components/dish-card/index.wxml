@@ -16,6 +16,19 @@
       <view wx:if="{{dish.cookedCount}}" class="dish-meta">
         <text class="dish-meta-text">{{dish.cookedCount}} 人想吃过</text>
       </view>
+      <!-- 提交人：头像 + 昵称都为空的整块不渲染，不留空白。
+           头像加载失败时 image 自身透明，露出容器的纯 CSS 圆形占位，不会裂图。 -->
+      <view wx:if="{{dish.submitter && (dish.submitter.avatar || dish.submitter.nickname)}}" class="dish-who">
+        <view class="dish-who-avatar">
+          <image
+            wx:if="{{dish.submitter.avatar}}"
+            class="dish-who-img"
+            src="{{dish.submitter.avatar}}"
+            mode="aspectFill"
+          />
+        </view>
+        <text wx:if="{{dish.submitter.nickname}}" class="dish-who-name">{{dish.submitter.nickname}}</text>
+      </view>
     </view>
   </view>
 </view>

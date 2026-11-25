@@ -73,14 +73,18 @@ function decorate(raw) {
   var item = raw || {};
   var orderer = item.orderer || {};
   var done = item.status === 'done';
+  var nickname = orderer.nickname || '一位朋友';
   return {
     id: item._id || item.id || '',
     dishId: item.dishId || '',
     dishName: item.dishName || '这道菜',
     dishCover: item.dishCover || '',
     note: item.note || '',
-    nickname: orderer.nickname || '一位朋友',
-    timeText: format.formatRelativeTime(item.createdAt),
+    nickname: nickname,
+    // 点菜人头像：后端返回的已是可直接显示的 https 临时链接
+    avatar: orderer.avatar || '',
+    avatarText: nickname.charAt(0),
+    timeText: format.formatTime(item.createdAt),
     status: done ? 'done' : 'new',
     statusText: done ? '已完成' : '待处理',
     doneLoading: false
@@ -262,6 +266,17 @@ Page({
         self.setData(revert);
       }
     );
+  },
+
+  // 头像加载失败：清掉这一条的 src，落回纯 CSS 圆形占位
+  onAvatarError: function (event) {
+    var index = Number(event.currentTarget.dataset.index);
+    if (!(index >= 0) || index >= this.data.list.length) {
+      return;
+    }
+    var patch = {};
+    patch['list[' + index + '].avatar'] = '';
+    this.setData(patch);
   },
 
   onTapDish: function (event) {

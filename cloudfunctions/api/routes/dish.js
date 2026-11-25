@@ -15,10 +15,13 @@ const {
   pickProfile,
 } = require('../lib/validate');
 const { checkUserText, joinText } = require('../lib/security');
-const { attachTempUrls } = require('../lib/storage');
+const { attachTempUrls, isCloudFileId } = require('../lib/storage');
 
-/** 读取类接口要转换的图片字段：封面 + 图片数组（落库仍存 fileID 原文）。 */
-const IMAGE_FIELDS = ['cover', 'images'];
+/**
+ * 读取类接口要转换的图片字段：封面 + 图片数组 + 提交者头像（一层嵌套字段）。
+ * 落库仍存 fileID 原文。
+ */
+const IMAGE_FIELDS = ['cover', 'images', 'submitter.avatar'];
 
 const STATUS = {
   APPROVED: 'approved',
@@ -123,6 +126,8 @@ async function create(ctx) {
   const fields = readDishFields(payload);
   const resolved = await resolveContext(ctx.openid);
   const profile = pickProfile(payload);
+  // avatar 只接受云存储 fileID，其它值（外链等）一律落空串，防止塞外链
+  const avatar = isCloudFileId(profile.avatar) ? profile.avatar : '';
 
   // 内容安全：命中违规直接 INVALID，不落库
   await checkUserText(ctx.openid, joinText(fields.name, fields.story, fields.tags));
@@ -141,7 +146,7 @@ async function create(ctx) {
     submitter: {
       openid: ctx.openid,
       nickname: profile.nickname,
-      avatar: profile.avatar,
+      avatar: avatar,
     },
     cookedCount: 0,
     createdAt: ts,
@@ -162,6 +167,7 @@ async function update(ctx) {
   const resolved = await resolveContext(ctx.openid);
 
   const fields = readDishFields(payload);
+  const profile = pickProfile(payload);
   await checkUserText(ctx.openid, joinText(fields.name, fields.story, fields.tags));
 
   const patch = {
@@ -172,6 +178,19 @@ async function update(ctx) {
     tags: fields.tags,
     updatedAt: now(),
   };
+
+  // 头像快照：只有 payload 显式带了 avatar 才更新 submitter.avatar，
+  // 未传时保持库里原值（避免一次编辑把已有头像清空）。
+  if (payload.avatar !== undefined && payload.avatar !== null) {
+    const current = dish.submitter;
+    const baseSubmitter =
+      current && typeof current === 'object' && !Array.isArray(current) ? current : {};
+    patch.submitter = Object.assign(
+      { openid: dish.ownerOpenid || ctx.openid, nickname: '' },
+      baseSubmitter,
+      { avatar: isCloudFileId(profile.avatar) ? profile.avatar : '' }
+    );
+  }
 
   // 访客改的菜若已上架，必须退回待审核，否则可绕过主人家审核改出任意内容；
   // 主人家自己编辑任何菜品都保持原状态不变。

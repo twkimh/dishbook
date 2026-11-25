@@ -15,6 +15,7 @@ const { ok, fail, invalid, unauthorized } = require('./lib/response');
 const login = require('./routes/login');
 const dish = require('./routes/dish');
 const order = require('./routes/order');
+const profile = require('./routes/profile');
 
 /** action -> 处理函数（SPEC §4 表格全量） */
 const ROUTES = {
@@ -30,6 +31,8 @@ const ROUTES = {
   'order.create': order.create,
   'order.list': order.list,
   'order.done': order.done,
+  'profile.get': profile.get,
+  'profile.save': profile.save,
 };
 
 function readPayload(event) {

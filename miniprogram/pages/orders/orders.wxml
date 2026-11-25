@@ -55,6 +55,15 @@
             <text class="status status-{{item.status}}">{{item.statusText}}</text>
           </view>
           <view class="card-meta">
+            <image
+              wx:if="{{item.avatar}}"
+              class="who-avatar"
+              src="{{item.avatar}}"
+              mode="aspectFill"
+              binderror="onAvatarError"
+              data-index="{{index}}"
+            />
+            <view wx:else class="who-avatar who-avatar-blank">{{item.avatarText}}</view>
             <text class="who">{{item.nickname}}</text>
             <text class="dot">·</text>
             <text class="time">{{item.timeText}}</text>

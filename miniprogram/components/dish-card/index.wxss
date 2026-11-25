@@ -81,3 +81,34 @@
   font-size: 22rpx;
   letter-spacing: 1rpx;
 }
+
+/* ---------- 提交人（头像 + 昵称） ---------- */
+.dish-who {
+  display: flex;
+  align-items: center;
+  margin-top: 14rpx;
+}
+
+/* 容器自带纯 CSS 圆形占位：头像没加载出来时露出的就是它 */
+.dish-who-avatar {
+  flex: 0 0 48rpx;
+  width: 48rpx;
+  height: 48rpx;
+  margin-right: 12rpx;
+  border-radius: 50%;
+  overflow: hidden;
+  background-color: var(--accent-soft);
+}
+
+.dish-who-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+
+.dish-who-name {
+  color: var(--ink-soft);
+  font-size: 22rpx;
+  letter-spacing: 1rpx;
+}

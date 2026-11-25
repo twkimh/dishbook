@@ -4,14 +4,40 @@
     <view class="page-sub">身份、主人家入口和我提交过的菜</view>
   </view>
 
-  <!-- 身份卡片 -->
+  <!-- 身份卡片：头像走微信头像填写能力，昵称走 type="nickname" 自动填充 -->
   <view class="id-card paper tilt-l">
     <view class="tape tape-top"></view>
     <view class="id-row">
-      <view class="role-badge role-{{isOwner ? 'owner' : 'guest'}}">{{isOwner ? '主人家' : '访客'}}</view>
+      <button
+        class="avatar-btn tap"
+        hover-class="tap-shrink"
+        hover-stay-time="60"
+        open-type="chooseAvatar"
+        bindchooseavatar="onChooseAvatar"
+      >
+        <image
+          wx:if="{{avatarUrl}}"
+          class="avatar-img"
+          src="{{avatarUrl}}"
+          mode="aspectFill"
+          binderror="onAvatarError"
+        />
+        <view wx:else class="avatar-empty">{{avatarText}}</view>
+      </button>
       <view class="id-text">
-        <view class="id-name">{{nickname ? nickname : (isOwner ? '还没设置称呼' : '朋友')}}</view>
+        <view class="role-badge role-{{isOwner ? 'owner' : 'guest'}}">{{isOwner ? '主人家' : '访客'}}</view>
+        <input
+          type="nickname"
+          class="nickname-input"
+          value="{{nickname}}"
+          maxlength="20"
+          placeholder="怎么称呼你"
+          placeholder-class="nickname-ph"
+          bindinput="onNicknameInput"
+          bindblur="onNicknameBlur"
+        />
         <view class="id-hint">{{isOwner ? '这一摊是你管的：菜谱、审核、点菜记录' : '可以浏览菜谱，也能推荐一道菜等主人家审核'}}</view>
+        <view class="avatar-hint">{{avatarUploading ? '头像正在上传…' : '点头像换头像'}}</view>
       </view>
     </view>
     <view class="edit-line tap" hover-class="tap-shrink" hover-stay-time="60" bindtap="onEditNickname">
@@ -35,6 +61,13 @@
         <view class="entry-sub">朋友推荐过来的菜</view>
       </view>
       <view wx:if="{{pendingCount > 0}}" class="badge">{{pendingText}}</view>
+      <view class="entry-arrow">›</view>
+    </view>
+    <view class="entry paper tilt-r tap" hover-class="tap-shrink" hover-stay-time="60" bindtap="onNoticeTap">
+      <view class="entry-main">
+        <view class="entry-title">点菜提醒</view>
+        <view class="entry-sub">{{noticeHint}}</view>
+      </view>
       <view class="entry-arrow">›</view>
     </view>
   </view>

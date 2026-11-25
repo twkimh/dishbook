@@ -25,14 +25,36 @@ function isCloudFileId(value) {
   return typeof value === 'string' && value.indexOf(CLOUD_PREFIX) === 0;
 }
 
+function isPlainObject(value) {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+/**
+ * 字段名解析：支持平铺字段（'cover'）与一层点路径（'submitter.avatar'）。
+ * 父对象不存在 / 不是普通对象时返回 null，由调用方安全跳过 —— 嵌套字段缺失不许抛错。
+ * 超过一层的路径（'a.b.c'）不支持，同样返回 null。
+ */
+function resolveField(item, field) {
+  const segments = String(field).split('.');
+  if (segments.length === 1) {
+    return segments[0] ? { container: item, key: segments[0], parentKey: '' } : null;
+  }
+  if (segments.length !== 2 || !segments[0] || !segments[1]) return null;
+  const parent = item[segments[0]];
+  if (!isPlainObject(parent)) return null;
+  return { container: parent, key: segments[1], parentKey: segments[0] };
+}
+
 /**
  * 收集一条记录里指定字段的 fileID。
- * 字符串字段直接收；数组字段（如 images）逐项收。只处理一层，不递归。
+ * 字符串字段直接收；数组字段（如 images）逐项收。支持 'a.b' 形式的一层嵌套。
  */
 function collectFileIds(item, fields, bucket) {
   if (!item || typeof item !== 'object') return;
   for (let i = 0; i < fields.length; i += 1) {
-    const value = item[fields[i]];
+    const slot = resolveField(item, fields[i]);
+    if (!slot) continue;
+    const value = slot.container[slot.key];
     if (isCloudFileId(value)) {
       bucket.push(value);
       continue;
@@ -71,6 +93,8 @@ async function buildUrlMap(fileIds) {
 
 /**
  * 把映射表写回一条记录的同名字段。命中才写，未命中（转换失败）保留原 fileID。
+ * 支持 'a.b' 形式的一层嵌套：读 item.a.b，写回浅拷贝出来的 a 对象上 ——
+ * 绝不原地修改入参的子对象。
  * 不修改入参对象；无字段命中时原样返回入参引用。
  */
 function applyUrls(item, fields, urlMap) {
@@ -78,31 +102,43 @@ function applyUrls(item, fields, urlMap) {
   let patched = null;
 
   for (let i = 0; i < fields.length; i += 1) {
-    const field = fields[i];
-    const value = item[field];
+    const slot = resolveField(item, fields[i]);
+    if (!slot) continue;
+
+    const value = slot.container[slot.key];
+    let nextValue = null;
+    let changed = false;
 
     if (isCloudFileId(value) && urlMap[value]) {
-      if (!patched) patched = Object.assign({}, item);
-      patched[field] = urlMap[value];
-      continue;
+      nextValue = urlMap[value];
+      changed = true;
+    } else if (Array.isArray(value)) {
+      const next = [];
+      for (let j = 0; j < value.length; j += 1) {
+        const sub = value[j];
+        if (isCloudFileId(sub) && urlMap[sub]) {
+          next.push(urlMap[sub]);
+          changed = true;
+        } else {
+          next.push(sub);
+        }
+      }
+      nextValue = next;
     }
 
-    if (!Array.isArray(value)) continue;
-    let changed = false;
-    const next = [];
-    for (let j = 0; j < value.length; j += 1) {
-      const sub = value[j];
-      if (isCloudFileId(sub) && urlMap[sub]) {
-        next.push(urlMap[sub]);
-        changed = true;
-      } else {
-        next.push(sub);
-      }
+    if (!changed) continue;
+
+    if (!patched) patched = Object.assign({}, item);
+    if (!slot.parentKey) {
+      patched[slot.key] = nextValue;
+      continue;
     }
-    if (changed) {
-      if (!patched) patched = Object.assign({}, item);
-      patched[field] = next;
-    }
+    // 同一父对象上可能有多个字段命中：已拷贝过的那份直接复用，
+    // 否则后一次会用入参里的原对象重建，把前一次的结果覆盖掉。
+    const base = isPlainObject(patched[slot.parentKey]) ? patched[slot.parentKey] : slot.container;
+    const parentCopy = Object.assign({}, base);
+    parentCopy[slot.key] = nextValue;
+    patched[slot.parentKey] = parentCopy;
   }
 
   return patched || item;
@@ -159,6 +195,10 @@ async function attachTempUrls(items, options) {
 
 module.exports = {
   attachTempUrls: attachTempUrls,
+  // 下面两个只为复用与自测导出：写入侧判断「是不是云存储 fileID」用 isCloudFileId，
+  // applyUrls 用于 node -e 验证点路径替换行为，运行时均由 attachTempUrls 内部调用。
+  applyUrls: applyUrls,
+  isCloudFileId: isCloudFileId,
   TEMP_URL_MAX_AGE: TEMP_URL_MAX_AGE,
   BATCH_LIMIT: BATCH_LIMIT,
 };

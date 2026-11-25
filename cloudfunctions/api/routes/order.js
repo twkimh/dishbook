@@ -11,10 +11,13 @@ const { LIMITS, pickText, pickId, pickPaging, listResult, pickProfile } = requir
 const { checkUserText, joinText } = require('../lib/security');
 const { sendOrderNotice, sendOrderConfirmNotice, NOTIFY_STATE } = require('../lib/notify');
 const { findDish, canSeeDish } = require('./dish');
-const { attachTempUrls } = require('../lib/storage');
+const { attachTempUrls, isCloudFileId } = require('../lib/storage');
 
-/** 点菜记录里唯一的图片字段（下单时的菜品封面快照，落库仍是 fileID 原文）。 */
-const IMAGE_FIELDS = ['dishCover'];
+/**
+ * 点菜记录里要转临时链接的图片字段（落库仍是 fileID 原文）：
+ * 下单时的菜品封面快照 + 点菜者头像（一层嵌套字段）。
+ */
+const IMAGE_FIELDS = ['dishCover', 'orderer.avatar'];
 
 const ORDER_STATUS = {
   NEW: 'new',
@@ -46,6 +49,8 @@ async function create(ctx) {
   await checkUserText(ctx.openid, joinText(note));
 
   const profile = pickProfile(payload);
+  // avatar 只接受云存储 fileID，其它值（外链等）一律落空串，防止塞外链
+  const avatar = isCloudFileId(profile.avatar) ? profile.avatar : '';
   const ts = now();
   const doc = {
     dishId: dishId,
@@ -55,7 +60,7 @@ async function create(ctx) {
     orderer: {
       openid: ctx.openid,
       nickname: profile.nickname,
-      avatar: profile.avatar,
+      avatar: avatar,
     },
     status: ORDER_STATUS.NEW,
     notifyState: NOTIFY_STATE.SKIPPED,

@@ -7,7 +7,7 @@
  *   -> 两者非空的收进 tmplIds，一次 requestSubscribeMessage（accept / reject / 报错 都继续下单）
  *   -> 昵称（本地缓存 nickname，没有就问一次，取消用「匿名朋友」）
  *   -> 备注（可空，取消传空串）
- *   -> api.orderCreate(dishId, note, { nickname })
+ *   -> api.orderCreate(dishId, note, { nickname, avatar })
  *   -> 成功：按钮短暂「已点」+ 按 notifyState 提示；notifyState 任何值都不算失败
  */
 
@@ -246,7 +246,14 @@ Page({
   },
 
   submitOrder: function (dishId, note, nickname) {
-    return api.orderCreate(dishId, note || '', { nickname: nickname });
+    var avatar = '';
+    try {
+      var stored = wx.getStorageSync('avatar');
+      avatar = typeof stored === 'string' ? stored : '';
+    } catch (err) {
+      console.warn('[detail] 读取头像失败', err);
+    }
+    return api.orderCreate(dishId, note || '', { nickname: nickname, avatar: avatar });
   },
 
   handleOrderSuccess: function (result) {
