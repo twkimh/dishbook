@@ -4,6 +4,8 @@
   "backgroundTextStyle": "dark",
   "usingComponents": {
     "dish-card": "/components/dish-card/index",
-    "empty-state": "/components/empty-state/index"
+    "empty-state": "/components/empty-state/index",
+    "menu-ball": "/components/menu-ball/index",
+    "orderers-sheet": "/components/orderers-sheet/index"
   }
 }

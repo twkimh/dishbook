@@ -1,0 +1,137 @@
+/* 谁点过这道菜（SPEC-v1.0.8 §4.3）：只用 var(--x) 与 rgba()，不写颜色字面量（SPEC §5）
+ * 组件默认样式隔离，这里自带一套完整的浮层样式，不依赖页面类名。
+ * 遮罩用 fixed：挂载点在页面根节点，祖先链上没有 transform。
+ */
+
+.sheet-mask {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 960;
+  display: flex;
+  align-items: flex-end;
+  background-color: rgba(59, 48, 42, 0.45);
+}
+
+.sheet-panel {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: 100%;
+  max-height: 70vh;
+  padding: 28rpx 28rpx 24rpx;
+  padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
+  border-top: 2rpx dashed var(--line);
+  border-radius: var(--radius) var(--radius) 0 0;
+  background-color: var(--paper);
+  box-shadow: 0 -8rpx 24rpx rgba(90, 62, 40, 0.18);
+}
+
+.sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12rpx;
+}
+
+.sheet-title {
+  flex: 1;
+  min-width: 0;
+  color: var(--ink);
+  font-size: 30rpx;
+  font-weight: 700;
+  letter-spacing: 2rpx;
+}
+
+.sheet-close {
+  flex: none;
+  margin-left: 16rpx;
+  padding: 0 12rpx;
+  color: var(--ink-soft);
+  font-size: 36rpx;
+  line-height: 1;
+}
+
+.sheet-body {
+  flex: 1;
+  min-height: 80rpx;
+}
+
+.sheet-hint {
+  padding: 48rpx 0;
+  color: var(--ink-soft);
+  font-size: 26rpx;
+  letter-spacing: 1rpx;
+  text-align: center;
+}
+
+/* ---------- 一行一个点过的人 ---------- */
+.person-row {
+  display: flex;
+  align-items: center;
+  padding: 18rpx 4rpx;
+  border-bottom: 2rpx dashed var(--line);
+}
+
+.person-row:last-child {
+  border-bottom: none;
+}
+
+/* 容器自带纯 CSS 圆形占位：头像没加载出来时露出的就是它 */
+.person-avatar {
+  flex: 0 0 48rpx;
+  width: 48rpx;
+  height: 48rpx;
+  margin-right: 18rpx;
+  overflow: hidden;
+  border-radius: 50%;
+  background-color: var(--accent-soft);
+}
+
+.person-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+
+.person-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: var(--ink);
+  font-size: 24rpx;
+  font-weight: 600;
+}
+
+.person-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.person-name {
+  color: var(--ink);
+  font-size: 28rpx;
+  font-weight: 600;
+  letter-spacing: 1rpx;
+}
+
+.person-time {
+  margin-top: 4rpx;
+  color: var(--ink-soft);
+  font-size: 22rpx;
+  letter-spacing: 1rpx;
+}
+
+.person-times {
+  flex: none;
+  margin-left: 16rpx;
+  color: var(--accent);
+  font-size: 24rpx;
+  font-weight: 600;
+  letter-spacing: 1rpx;
+}

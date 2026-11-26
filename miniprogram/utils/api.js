@@ -148,6 +148,106 @@ function orderDone(id) {
   return call('order.done', { id: id });
 }
 
+// orderCancel(id) -> {}
+// 取消点菜：点菜人本人或主人家可以取消；取消后这条记录不再出现在点菜单里
+function orderCancel(id) {
+  return call('order.cancel', { id: id });
+}
+
+/* ---------- 修改提案（v1.0.8） ---------- */
+
+// dishEdit(dish) -> { id, status }  status='approved' 表示主人家直接生效，'pending' 表示进了审核队列
+function dishEdit(dish) {
+  return call('dish.edit', dish || {});
+}
+
+// dishEditList({ page, pageSize }) -> { list, total, hasMore }  仅主人家
+function dishEditList(params) {
+  return call('dish.editList', params || {});
+}
+
+// dishEditReview(id, accept) -> { status }
+function dishEditReview(id, accept) {
+  return call('dish.editReview', { id: id, accept: !!accept });
+}
+
+// dishEditHistory(dishId, { page, pageSize }) -> { list, total, hasMore }
+function dishEditHistory(dishId, params) {
+  var p = params || {};
+  return call('dish.editHistory', {
+    dishId: dishId,
+    page: p.page === undefined ? 1 : p.page,
+    pageSize: p.pageSize === undefined ? 20 : p.pageSize
+  });
+}
+
+/* ---------- 喜欢 / 想吃（v1.0.8） ---------- */
+
+// dishLike(id)   -> { liked:true,  likeCount, likes }
+// dishUnlike(id) -> { liked:false, likeCount, likes }
+function dishLike(id) {
+  return call('dish.like', { id: id });
+}
+
+function dishUnlike(id) {
+  return call('dish.unlike', { id: id });
+}
+
+// dishWant(id) -> { wants }   dishUnwant(id) -> { wants }
+function dishWant(id) {
+  return call('dish.want', { id: id });
+}
+
+function dishUnwant(id) {
+  return call('dish.unwant', { id: id });
+}
+
+/* ---------- 点菜单（v1.0.8） ---------- */
+
+// menuCurrent() -> 菜单对象或 null；菜单对象里带 expired 布尔
+function menuCurrent() {
+  return call('menu.current', {});
+}
+
+// menuStart({ title, dateText, mealType, headcount, endsAt }) -> 菜单对象  仅主人家
+function menuStart(params) {
+  var p = params || {};
+  return call('menu.start', {
+    title: p.title || '',
+    dateText: p.dateText || '',
+    mealType: p.mealType || '',
+    headcount: p.headcount === undefined ? 0 : p.headcount,
+    endsAt: p.endsAt === undefined ? null : p.endsAt
+  });
+}
+
+// menuClose() -> {}  仅主人家
+function menuClose() {
+  return call('menu.close', {});
+}
+
+// menuList({ page, pageSize }) -> { list, total, hasMore }
+function menuList(params) {
+  return call('menu.list', params || {});
+}
+
+// menuDetail(id) -> { menu, dishes: [{ dishId, dishName, dishCover, orders:[...], wants:[...] }] }
+function menuDetail(id) {
+  return call('menu.detail', { id: id });
+}
+
+// menuReview(id, decisions) -> { reviewedAt, review }  仅主人家
+// decisions: { [dishId]: 'done' | 'missed' }；一道菜 confirm 'done' 才让它的被点次数 +1
+function menuReview(id, decisions) {
+  return call('menu.review', { id: id, decisions: decisions || {} });
+}
+
+// dishOrderers(id) -> { people: [{ openid, nickname, avatar, times, lastAt }] }
+// 历史上点过这道菜的人，按最近一次时间倒序
+function dishOrderers(id) {
+  return call('dish.orderers', { id: id });
+}
+
 module.exports = {
   login: login,
   profileGet: profileGet,
@@ -160,7 +260,23 @@ module.exports = {
   dishMine: dishMine,
   dishReviewList: dishReviewList,
   dishReview: dishReview,
+  dishEdit: dishEdit,
+  dishEditList: dishEditList,
+  dishEditReview: dishEditReview,
+  dishEditHistory: dishEditHistory,
+  dishLike: dishLike,
+  dishUnlike: dishUnlike,
+  dishWant: dishWant,
+  dishUnwant: dishUnwant,
   orderCreate: orderCreate,
   orderList: orderList,
-  orderDone: orderDone
+  orderDone: orderDone,
+  orderCancel: orderCancel,
+  menuCurrent: menuCurrent,
+  menuStart: menuStart,
+  menuClose: menuClose,
+  menuList: menuList,
+  menuDetail: menuDetail,
+  menuReview: menuReview,
+  dishOrderers: dishOrderers
 };

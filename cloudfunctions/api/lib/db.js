@@ -16,6 +16,9 @@ const COLLECTIONS = {
   META: 'meta',
   // 用户资料集合：_id 直接用 openid，由用户在控制台手动创建，代码只读写
   USERS: 'users',
+  // v1.0.8 新集合（控制台已建好，权限 ADMINONLY）
+  DISH_EDITS: 'dishEdits',
+  MENUS: 'menus',
 };
 
 const META_ID = 'app';
@@ -140,6 +143,16 @@ function users() {
   return db.collection(COLLECTIONS.USERS);
 }
 
+/** 修改提案集合句柄（SPEC-v1.0.8 §1.2）。 */
+function dishEdits() {
+  return db.collection(COLLECTIONS.DISH_EDITS);
+}
+
+/** 点菜单会话集合句柄（SPEC-v1.0.8 §1.3）。 */
+function menus() {
+  return db.collection(COLLECTIONS.MENUS);
+}
+
 const serverDate = function () {
   return Date.now();
 };
@@ -158,5 +171,7 @@ module.exports = {
   dishes: dishes,
   orders: orders,
   users: users,
+  dishEdits: dishEdits,
+  menus: menus,
   now: serverDate,
 };

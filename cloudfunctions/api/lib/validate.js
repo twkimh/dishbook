@@ -18,7 +18,70 @@ const LIMITS = {
   KEYWORD_MAX: 50,
   ID_MAX: 128,
   SECURITY_CONTENT_MAX: 2500,
+  // v1.0.8（SPEC-v1.0.8 §1.1）：材料/调料各 ≤20 项、每项 ≤20 字；烹饪方式不限数量
+  INGREDIENT_MAX_COUNT: 20,
+  INGREDIENT_MAX_LEN: 20,
+  SEASONING_MAX_COUNT: 20,
+  SEASONING_MAX_LEN: 20,
+  MENU_TITLE_MAX: 30,
+  MENU_DATE_MAX: 20,
+  MENU_HEADCOUNT_MAX: 99,
 };
+
+/**
+ * 烹饪方式白名单（SPEC-v1.0.8 §1.1，逐字照抄）。
+ * 白名单外的值一律静默丢弃，不报错。
+ */
+const METHODS = [
+  '炒', '爆', '熘', '煸', '炝', '干煸', '炸', '煎', '烙', '烤', '炭烤', '熏', '焗', '蒸', '清蒸', '粉蒸',
+  '煮', '炖', '焖', '煨', '烧', '红烧', '烩', '汆', '涮', '熬', '焯', '拌', '凉拌', '腌', '卤', '酱', '醉', '糟',
+  '白灼', '糖醋', '拔丝', '干锅', '砂锅', '铁板', '水煮',
+];
+
+const METHOD_INDEX = {};
+for (let i = 0; i < METHODS.length; i += 1) METHOD_INDEX[METHODS[i]] = true;
+
+/** 烹饪方式清洗：只留白名单内的值，去重、保留原顺序，非法值直接丢弃（不报错）。 */
+function pickMethods(value) {
+  if (!Array.isArray(value)) return [];
+  const out = [];
+  const seen = {};
+  for (let i = 0; i < value.length; i += 1) {
+    const item = value[i];
+    if (typeof item !== 'string') continue;
+    const text = item.trim();
+    if (!text || !METHOD_INDEX[text] || seen[text]) continue;
+    seen[text] = true;
+    out.push(text);
+  }
+  return out;
+}
+
+/**
+ * 宽松版字符串数组清洗（v1.0.8 的 ingredients / seasonings）：
+ * 非数组 -> []，非字符串项跳过，超长截断，超量截断，全程不抛错。
+ * 与 pickTextArray 的区别：pickTextArray 面向 dish.update 等存量字段，超限即 INVALID；
+ * 新增的可选修饰字段按「防御式、不许抛错」处理。
+ */
+function pickTextArraySafe(value, options) {
+  const opt = options || {};
+  const maxCount = opt.maxCount && opt.maxCount > 0 ? opt.maxCount : 0;
+  const maxItemLen = opt.maxItemLen && opt.maxItemLen > 0 ? opt.maxItemLen : 0;
+  if (!Array.isArray(value)) return [];
+  const out = [];
+  for (let i = 0; i < value.length; i += 1) {
+    if (maxCount && out.length >= maxCount) break;
+    const item = value[i];
+    if (typeof item !== 'string' && typeof item !== 'number') continue;
+    let text = String(item).trim();
+    if (!text) continue;
+    if (maxItemLen && charLength(text) > maxItemLen) {
+      text = Array.from(text).slice(0, maxItemLen).join('');
+    }
+    out.push(text);
+  }
+  return out;
+}
 
 function charLength(value) {
   return Array.from(String(value)).length;
@@ -138,10 +201,13 @@ function pickProfile(payload) {
 
 module.exports = {
   LIMITS,
+  METHODS,
   charLength,
   isBlank,
   pickText,
   pickTextArray,
+  pickTextArraySafe,
+  pickMethods,
   pickId,
   pickPaging,
   listResult,

@@ -1,0 +1,372 @@
+<view class="page menu-page">
+  <!-- ============ normal 视图：开新一轮 / 看这一轮 ============ -->
+  <block wx:if="{{viewMode === 'normal'}}">
+  <view class="page-head">
+    <view class="head-row">
+      <view class="page-title">点菜单</view>
+      <!-- 「待确认」入口：常驻但低调，只是页眉右侧的几个字，不做成按钮卡 -->
+      <view
+        wx:if="{{isOwner}}"
+        class="review-link tap"
+        hover-class="tap-shrink"
+        hover-stay-time="60"
+        bindtap="onOpenReview"
+      >
+        <text class="review-link-text">待确认</text>
+        <text wx:if="{{pendingReviewCount > 0}}" class="review-link-badge">{{pendingReviewCount}}</text>
+        <text class="review-link-arrow">›</text>
+      </view>
+    </view>
+    <view class="page-sub">{{hasMenu ? '这一轮大家都在点，点完就能开火' : '主人家开一轮，朋友就能点了'}}</view>
+  </view>
+
+  <!-- ---------- 顶部：当前状态 ---------- -->
+  <view class="status-card paper">
+    <block wx:if="{{hasMenu}}">
+      <view class="status-top">
+        <text class="status-title">{{menu.title}}</text>
+        <text class="status-badge">点菜中</text>
+      </view>
+      <view class="status-meta">
+        <text class="meta-item">{{menu.dateText}}</text>
+        <text class="meta-dot">·</text>
+        <text class="meta-item">{{menu.mealType}}</text>
+        <text class="meta-dot">·</text>
+        <text class="meta-item">{{menu.headcountText}}</text>
+      </view>
+      <view class="status-foot">
+        <text class="remain-label">剩余时间</text>
+        <text class="remain-value">{{menu.remainingText}}</text>
+      </view>
+    </block>
+    <block wx:else>
+      <view class="status-empty">现在没有在点菜</view>
+      <view wx:if="{{expiredHint}}" class="status-hint">{{expiredHint}}</view>
+    </block>
+  </view>
+
+  <!-- ---------- 主人家专属控制区 ---------- -->
+  <view wx:if="{{isOwner}}" class="owner-bar">
+    <view
+      wx:if="{{hasMenu}}"
+      class="sketch-btn sketch-btn-ghost tap"
+      hover-class="tap-shrink"
+      hover-stay-time="60"
+      bindtap="onCloseMenu"
+    >结束点菜</view>
+    <view
+      wx:else
+      class="sketch-btn tap"
+      hover-class="tap-shrink"
+      hover-stay-time="60"
+      bindtap="onOpenStart"
+    >开始点菜</view>
+  </view>
+
+  <!-- ---------- 正在看历史时的返回条 ---------- -->
+  <view wx:if="{{readonly}}" class="history-banner paper">
+    <view class="banner-main">
+      <text class="banner-text">正在看历史：{{viewMenu.title || '这一轮'}}</text>
+      <text wx:if="{{reviewAtText}}" class="banner-sub">已于 {{reviewAtText}} 确认</text>
+    </view>
+    <view class="banner-btn tap" hover-class="tap-shrink" hover-stay-time="60" bindtap="onBackToCurrent">回到本轮</view>
+  </view>
+  </block>
+
+  <!-- ============ review 视图：收尾上一轮（§4） ============ -->
+  <block wx:if="{{viewMode === 'review'}}">
+    <view
+      class="review-back tap"
+      hover-class="tap-shrink"
+      hover-stay-time="60"
+      bindtap="onCloseReview"
+    >‹ 返回点菜单</view>
+
+    <!-- 没有待确认轮次时的空状态：留在 review 视图，等用户自己返回 -->
+    <view wx:if="{{reviewEmpty}}" class="review-empty paper">
+      <text class="review-empty-text">当前未有待确认点菜单</text>
+      <text class="review-empty-hint">结束一轮点菜后就可以来这里确认</text>
+    </view>
+    <block wx:else>
+    <view wx:if="{{reviewMenu}}" class="status-card paper">
+      <view class="status-top">
+        <text class="status-title">{{reviewMenu.title}}</text>
+        <text class="status-badge status-badge-off">已结束</text>
+      </view>
+      <view class="status-meta">
+        <text class="meta-item">{{reviewMenu.dateText}}</text>
+        <text class="meta-dot">·</text>
+        <text class="meta-item">{{reviewMenu.mealType}}</text>
+        <text class="meta-dot">·</text>
+        <text class="meta-item">{{reviewMenu.headcountText}}</text>
+      </view>
+    </view>
+
+    <view wx:if="{{reviewEditable}}" class="review-callout">
+      <view class="callout-title">这一轮结束了</view>
+      <view class="callout-text">点过的菜哪些做好了？确认后会累加到「被点次数」</view>
+    </view>
+    </block>
+  </block>
+
+  <!-- ---------- 列表：本轮点了什么 ---------- -->
+  <block wx:if="{{loading && !dishes.length}}">
+    <view class="card paper">
+      <view class="skeleton skeleton-line" style="width: 55%;"></view>
+      <view class="skeleton skeleton-line" style="width: 80%;"></view>
+      <view class="skeleton skeleton-line" style="width: 40%; margin-bottom: 0;"></view>
+    </view>
+  </block>
+
+  <block wx:elif="{{dishes.length}}">
+    <view
+      wx:for="{{dishes}}"
+      wx:key="dishId"
+      class="card paper {{index % 2 === 0 ? 'tilt-l' : 'tilt-r'}}"
+    >
+      <view class="dish-head">
+        <view class="thumb">
+          <image wx:if="{{item.dishCover}}" class="thumb-img" src="{{item.dishCover}}" mode="aspectFill" lazy-load />
+          <view wx:else class="thumb-blank"><text class="thumb-mark">菜</text></view>
+        </view>
+        <view class="dish-info">
+          <text class="dish-name">{{item.dishName}}</text>
+          <text class="dish-count">{{item.orderCount}} 份点菜</text>
+        </view>
+        <view
+          wx:if="{{!readonly}}"
+          class="want-btn tap {{item.wanted ? 'want-on' : ''}} {{item.busy ? 'is-busy' : ''}}"
+          hover-class="tap-shrink"
+          hover-stay-time="60"
+          data-index="{{index}}"
+          bindtap="onToggleWant"
+        >{{item.wanted ? '取消想吃' : '馋 想吃'}}</view>
+      </view>
+
+      <!-- 结束确认（§4）：chip 只在「待确认」视图里出现，normal 视图永远没有 -->
+      <view wx:if="{{viewMode === 'review' && !reviewEmpty && reviewEditable}}" class="decide-row">
+        <view
+          class="decide-chip tap {{item.decision === 'done' ? 'decide-on' : ''}}"
+          hover-class="tap-shrink"
+          hover-stay-time="60"
+          data-index="{{index}}"
+          data-decision="done"
+          bindtap="onDecide"
+        >已做</view>
+        <view
+          class="decide-chip tap {{item.decision === 'missed' ? 'decide-off' : ''}}"
+          hover-class="tap-shrink"
+          hover-stay-time="60"
+          data-index="{{index}}"
+          data-decision="missed"
+          bindtap="onDecide"
+        >未做</view>
+      </view>
+      <view wx:elif="{{reviewDone}}" class="decide-row">
+        <text class="mark-badge {{item.mark === 'done' ? 'mark-done' : 'mark-missed'}}">{{item.mark === 'done' ? '已做' : '未做'}}</text>
+      </view>
+
+      <!-- 点菜人：每行一个人，右侧可取消 -->
+      <view wx:if="{{item.orders.length}}" class="orders">
+        <view
+          wx:for="{{item.orders}}"
+          wx:for-item="person"
+          wx:for-index="pi"
+          wx:key="key"
+          class="order-row"
+        >
+          <image
+            wx:if="{{person.avatar}}"
+            class="row-avatar"
+            src="{{person.avatar}}"
+            mode="aspectFill"
+            data-index="{{index}}"
+            data-sub="{{pi}}"
+            data-kind="order"
+            binderror="onAvatarError"
+          />
+          <view wx:else class="row-avatar row-avatar-blank">{{person.avatarText}}</view>
+          <view class="row-body">
+            <view class="row-line">
+              <text class="row-name">{{person.nickname}}</text>
+              <text class="row-time">{{person.timeText}}</text>
+            </view>
+            <text wx:if="{{person.note}}" class="row-note">“{{person.note}}”</text>
+          </view>
+          <!-- 取消：只要这条点菜记录还在，任何人都能取消（后端已放开权限） -->
+          <view
+            wx:if="{{person.orderId}}"
+            class="cancel-btn tap"
+            hover-class="tap-shrink"
+            hover-stay-time="60"
+            data-orderid="{{person.orderId}}"
+            data-dish="{{index}}"
+            data-index="{{pi}}"
+            bindtap="onCancelOrder"
+          >取消</view>
+        </view>
+      </view>
+
+      <!-- 想吃：只显示头像，点头像淡入一行昵称 -->
+      <view wx:if="{{item.wants.length}}" class="wants">
+        <text class="wants-label">想吃</text>
+        <view class="wants-avatars">
+          <block wx:for="{{item.wants}}" wx:for-item="w" wx:for-index="wi" wx:key="openid">
+            <image
+              wx:if="{{w.avatar}}"
+              class="want-avatar"
+              src="{{w.avatar}}"
+              mode="aspectFill"
+              data-index="{{index}}"
+              data-avatar="{{wi}}"
+              bindtap="onTapWantAvatar"
+              binderror="onAvatarError"
+              data-sub="{{wi}}"
+              data-kind="want"
+            />
+            <view
+              wx:else
+              class="want-avatar want-avatar-blank"
+              data-index="{{index}}"
+              data-avatar="{{wi}}"
+              bindtap="onTapWantAvatar"
+            >{{w.avatarText}}</view>
+          </block>
+        </view>
+      </view>
+      <view wx:if="{{item.wantTip}}" class="want-tip">{{item.wantTip}}</view>
+    </view>
+  </block>
+
+  <view wx:elif="{{!loading && !reviewEmpty}}" class="empty-box paper">
+    <text class="empty-text">这一轮还没人点菜</text>
+    <text class="empty-hint">{{readonly || reviewEditable ? '这一轮就这么过去了' : '去菜谱挑一道，点「+ 点这道菜」'}}</text>
+  </view>
+
+  <!-- ---------- 结束确认：确认这一轮（§4，只属于 review 视图） ---------- -->
+  <view wx:if="{{viewMode === 'review' && !reviewEmpty && reviewEditable}}" class="confirm-bar">
+    <view
+      class="sketch-btn tap {{reviewSubmitting ? 'is-busy' : ''}}"
+      hover-class="tap-shrink"
+      hover-stay-time="60"
+      bindtap="onSubmitReview"
+    >{{reviewSubmitting ? '正在确认…' : '确认这一轮'}}</view>
+  </view>
+
+  <!-- ---------- 底部：历史入口（只属于 normal 视图） ---------- -->
+  <view wx:if="{{viewMode === 'normal'}}" class="history-foot tap" hover-class="tap-shrink" hover-stay-time="60" bindtap="onOpenHistory">
+    <text class="history-text">历史点菜单</text>
+    <text class="history-arrow">›</text>
+  </view>
+</view>
+
+<!-- ============================================================
+     浮层必须挂在页面根节点下：.paper 带 transform，
+     position:fixed 会以它为参照物，遮罩会被裁进纸卡里。
+     ============================================================ -->
+
+<!-- 开始点菜浮层 -->
+<view wx:if="{{sheetShow}}" class="mask" catchtap="onSheetMaskTap" catchtouchmove="noop">
+  <view class="sheet" catchtap="noop">
+    <view class="sheet-title">开始点菜</view>
+    <scroll-view class="sheet-body" scroll-y>
+      <view class="field">
+        <text class="field-label">标题</text>
+        <input
+          class="field-input"
+          value="{{form.title}}"
+          maxlength="30"
+          placeholder="今天吃什么"
+          placeholder-class="field-placeholder"
+          bindinput="onFormTitleInput"
+        />
+      </view>
+
+      <view class="field">
+        <text class="field-label">日期</text>
+        <picker mode="date" value="{{form.dateText}}" bindchange="onFormDateChange">
+          <view class="field-picker">{{form.dateText}}</view>
+        </picker>
+      </view>
+
+      <view class="field">
+        <text class="field-label">餐次</text>
+        <view class="chips">
+          <view
+            wx:for="{{mealTypes}}"
+            wx:key="*this"
+            class="chip tap {{form.mealType === item ? 'chip-on' : ''}}"
+            hover-class="tap-shrink"
+            hover-stay-time="60"
+            data-meal="{{item}}"
+            bindtap="onFormMealTap"
+          >{{item}}</view>
+        </view>
+      </view>
+
+      <view class="field">
+        <text class="field-label">人数</text>
+        <picker mode="selector" range="{{headcounts}}" value="{{headcountIndex}}" bindchange="onFormHeadcountChange">
+          <view class="field-picker">{{form.headcount > 0 ? form.headcount + ' 人' : '不限'}}</view>
+        </picker>
+      </view>
+
+      <view class="field field-row">
+        <text class="field-label">到点自动失效</text>
+        <switch checked="{{form.autoEnd}}" bindchange="onFormAutoEndChange" />
+      </view>
+
+      <view wx:if="{{form.autoEnd}}" class="field">
+        <text class="field-label">结束时刻</text>
+        <picker mode="time" value="{{form.endTime}}" bindchange="onFormTimeChange">
+          <view class="field-picker">{{form.endTime || '选一个时间'}}</view>
+        </picker>
+      </view>
+    </scroll-view>
+    <view class="sheet-foot">
+      <view class="btn-ghost tap" hover-class="tap-shrink" hover-stay-time="60" bindtap="onCloseSheet">先不填</view>
+      <view
+        class="btn-main tap {{submitting ? 'is-busy' : ''}}"
+        hover-class="tap-shrink"
+        hover-stay-time="60"
+        bindtap="onSubmitStart"
+      >{{submitting ? '正在开始…' : '开始'}}</view>
+    </view>
+  </view>
+</view>
+
+<!-- 历史点菜单浮层 -->
+<view wx:if="{{historyShow}}" class="mask" catchtap="onCloseHistory" catchtouchmove="noop">
+  <view class="sheet sheet-history" catchtap="noop">
+    <view class="sheet-title">历史点菜单{{historyTotal ? ' · 共 ' + historyTotal + ' 轮' : ''}}</view>
+    <scroll-view class="sheet-body" scroll-y>
+      <view wx:if="{{!historyList.length && historyLoading}}" class="sheet-hint">正在翻旧账…</view>
+      <view wx:elif="{{!historyList.length}}" class="sheet-hint">还没有历史点菜单</view>
+      <view
+        wx:for="{{historyList}}"
+        wx:key="id"
+        class="his-row tap"
+        hover-class="tap-shrink"
+        hover-stay-time="60"
+        data-id="{{item.id}}"
+        bindtap="onTapHistory"
+      >
+        <view class="his-main">
+          <text class="his-title">{{item.title}}</text>
+          <text class="his-meta">{{item.dateText}} · {{item.mealType}} · {{item.headcountText}}</text>
+        </view>
+        <text class="his-status">{{item.statusText}}</text>
+      </view>
+      <view
+        wx:if="{{historyHasMore}}"
+        class="his-more tap"
+        hover-class="tap-shrink"
+        hover-stay-time="60"
+        bindtap="onMoreHistory"
+      >{{historyLoading ? '正在加载…' : '看更早的'}}</view>
+    </scroll-view>
+    <view class="sheet-foot">
+      <view class="btn-ghost tap" hover-class="tap-shrink" hover-stay-time="60" bindtap="onCloseHistory">关上</view>
+    </view>
+  </view>
+</view>

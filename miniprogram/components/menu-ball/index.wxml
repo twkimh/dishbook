@@ -1,0 +1,12 @@
+<view
+  class="menu-ball {{active ? 'ball-on' : 'ball-off'}} {{dragging ? 'ball-dragging' : ''}}"
+  style="{{ballStyle}}"
+  bindtouchstart="onTouchStart"
+  catchtouchmove="onTouchMove"
+  bindtouchend="onTouchEnd"
+  bindtouchcancel="onTouchCancel"
+>
+  <view class="bowl"></view>
+  <view class="ball-text">点菜单</view>
+  <view wx:if="{{active}}" class="ball-dot"></view>
+</view>

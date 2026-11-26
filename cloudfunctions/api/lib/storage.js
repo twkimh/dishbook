@@ -30,30 +30,55 @@ function isPlainObject(value) {
 }
 
 /**
- * 字段名解析：支持平铺字段（'cover'）与一层点路径（'submitter.avatar'）。
- * 父对象不存在 / 不是普通对象时返回 null，由调用方安全跳过 —— 嵌套字段缺失不许抛错。
+ * 字段名解析：支持四种形态
+ *   1. 平铺字段（'cover'）
+ *   2. 平铺字符串数组（'images'）
+ *   3. 一层点路径（'submitter.avatar'）—— 父对象是普通对象
+ *   4. 对象数组的元素字段（'wants.avatar' / 'contributors.avatar'）—— 父是数组，元素是对象
+ *
+ * 父值不存在 / 既不是对象也不是数组时返回 null，由调用方安全跳过 —— 缺失字段不许抛错。
  * 超过一层的路径（'a.b.c'）不支持，同样返回 null。
+ * asArrayItems=true 表示第 4 种形态：container 是数组本身，key 是给每个元素用的字段名。
  */
 function resolveField(item, field) {
   const segments = String(field).split('.');
   if (segments.length === 1) {
-    return segments[0] ? { container: item, key: segments[0], parentKey: '' } : null;
+    return segments[0]
+      ? { container: item, key: segments[0], parentKey: '', asArrayItems: false }
+      : null;
   }
   if (segments.length !== 2 || !segments[0] || !segments[1]) return null;
   const parent = item[segments[0]];
-  if (!isPlainObject(parent)) return null;
-  return { container: parent, key: segments[1], parentKey: segments[0] };
+  if (isPlainObject(parent)) {
+    return { container: parent, key: segments[1], parentKey: segments[0], asArrayItems: false };
+  }
+  if (Array.isArray(parent)) {
+    return { container: parent, key: segments[1], parentKey: segments[0], asArrayItems: true };
+  }
+  return null;
 }
 
 /**
  * 收集一条记录里指定字段的 fileID。
- * 字符串字段直接收；数组字段（如 images）逐项收。支持 'a.b' 形式的一层嵌套。
+ * 字符串字段直接收；数组字段（如 images）逐项收；'a.b' 一层嵌套；
+ * 'wants.avatar' 这种对象数组形态收每个元素的 avatar。数组里混入非对象项时跳过，不报错。
  */
 function collectFileIds(item, fields, bucket) {
   if (!item || typeof item !== 'object') return;
   for (let i = 0; i < fields.length; i += 1) {
     const slot = resolveField(item, fields[i]);
     if (!slot) continue;
+
+    if (slot.asArrayItems) {
+      const rows = slot.container;
+      for (let j = 0; j < rows.length; j += 1) {
+        const row = rows[j];
+        if (!isPlainObject(row)) continue;
+        if (isCloudFileId(row[slot.key])) bucket.push(row[slot.key]);
+      }
+      continue;
+    }
+
     const value = slot.container[slot.key];
     if (isCloudFileId(value)) {
       bucket.push(value);
@@ -104,6 +129,29 @@ function applyUrls(item, fields, urlMap) {
   for (let i = 0; i < fields.length; i += 1) {
     const slot = resolveField(item, fields[i]);
     if (!slot) continue;
+
+    if (slot.asArrayItems) {
+      // 对象数组的元素字段（wants.avatar / contributors.avatar）：
+      // 逐个元素拷贝，绝不原地修改数组里的对象；未命中的元素保持原引用。
+      // 同一父字段若已在前一轮处理过（patched 里已有一份新数组），以那份为基础继续改。
+      const rows =
+        patched && Array.isArray(patched[slot.parentKey]) ? patched[slot.parentKey] : slot.container;
+      let nextRows = null;
+      for (let j = 0; j < rows.length; j += 1) {
+        const row = rows[j];
+        if (!isPlainObject(row)) continue;
+        const fieldValue = row[slot.key];
+        if (!isCloudFileId(fieldValue) || !urlMap[fieldValue]) continue;
+        if (!nextRows) nextRows = rows.slice();
+        const rowCopy = Object.assign({}, row);
+        rowCopy[slot.key] = urlMap[fieldValue];
+        nextRows[j] = rowCopy;
+      }
+      if (!nextRows) continue;
+      if (!patched) patched = Object.assign({}, item);
+      patched[slot.parentKey] = nextRows;
+      continue;
+    }
 
     const value = slot.container[slot.key];
     let nextValue = null;

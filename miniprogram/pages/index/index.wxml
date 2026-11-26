@@ -64,24 +64,35 @@
   </view>
 
   <view wx:elif="{{list.length}}" class="grid">
-    <!-- 两列瀑布：index 交给 dish-card，用于相邻卡片交替倾斜 -->
+    <!-- 两列瀑布：index 交给 dish-card，用于相邻卡片交替倾斜。
+         三个操作按钮已经在 dish-card 内部，.cell 只负责列宽。 -->
     <view class="column">
-      <dish-card
-        wx:for="{{leftColumn}}"
-        wx:key="_id"
-        dish="{{item}}"
-        index="{{index * 2}}"
-        bindtap="onCardTap"
-      />
+      <view wx:for="{{leftColumn}}" wx:key="_id" class="cell">
+        <dish-card
+          dish="{{item}}"
+          index="{{index * 2}}"
+          menu-ready="{{menuReady}}"
+          bindtap="onCardTap"
+          bind:order="onCardOrder"
+          bind:like="onCardLike"
+          bind:want="onCardWant"
+          bind:orderers="onCardOrderers"
+        />
+      </view>
     </view>
     <view class="column">
-      <dish-card
-        wx:for="{{rightColumn}}"
-        wx:key="_id"
-        dish="{{item}}"
-        index="{{index * 2 + 1}}"
-        bindtap="onCardTap"
-      />
+      <view wx:for="{{rightColumn}}" wx:key="_id" class="cell">
+        <dish-card
+          dish="{{item}}"
+          index="{{index * 2 + 1}}"
+          menu-ready="{{menuReady}}"
+          bindtap="onCardTap"
+          bind:order="onCardOrder"
+          bind:like="onCardLike"
+          bind:want="onCardWant"
+          bind:orderers="onCardOrderers"
+        />
+      </view>
     </view>
   </view>
 
@@ -140,4 +151,15 @@
       </view>
     </view>
   </view>
+
+  <!-- 菜单球（悬浮入口，组件无 props，SPEC-v1.0.8） -->
+  <menu-ball />
+
+  <!-- 谁点过这道菜：挂页面根节点（不能进带 transform 的 .paper），组件自己拉数据 -->
+  <orderers-sheet
+    visible="{{orderersVisible}}"
+    dish-id="{{orderersDishId}}"
+    dish-name="{{orderersDishName}}"
+    bind:close="onOrderersClose"
+  />
 </view>

@@ -13,8 +13,18 @@
       <view wx:if="{{dish.tags && dish.tags.length}}" class="dish-tags">
         <tag-chip wx:for="{{dish.tags}}" wx:key="*this" text="{{item}}" />
       </view>
-      <view wx:if="{{dish.cookedCount}}" class="dish-meta">
-        <text class="dish-meta-text">{{dish.cookedCount}} 人想吃过</text>
+      <!-- 被点次数（SPEC-v1.0.8 §4）：语义已从「想吃人数」变成「主人家确认做过的次数」，
+           文案必须是「被点 N 次」。整块可点开「谁点过这道菜」浮窗，
+           末尾的 › 就是可点的暗示；必须 catchtap，用 bindtap 会连卡片跳详情一起触发。 -->
+      <view
+        wx:if="{{dish.cookedCount}}"
+        class="dish-meta"
+        hover-class="tap-shrink"
+        hover-stay-time="60"
+        hover-stop-propagation="true"
+        catchtap="onOrderersTap"
+      >
+        <text class="dish-meta-text">被点 {{dish.cookedCount || 0}} 次 ›</text>
       </view>
       <!-- 提交人：头像 + 昵称都为空的整块不渲染，不留空白。
            头像加载失败时 image 自身透明，露出容器的纯 CSS 圆形占位，不会裂图。 -->
@@ -28,6 +38,37 @@
           />
         </view>
         <text wx:if="{{dish.submitter.nickname}}" class="dish-who-name">{{dish.submitter.nickname}}</text>
+      </view>
+      <!-- 三个操作：状态（_wanted / _liked / _order 由页面算好，menuReady 决定「+」是否置灰），
+           组件只负责渲染。一律 catchtap：用 bindtap 会连卡片跳详情一起触发。 -->
+      <view class="card-acts">
+        <view
+          class="card-act card-act-want {{dish._wanted ? 'is-on' : ''}} {{dish._wantBusy ? 'is-busy' : ''}}"
+          hover-class="tap-shrink"
+          hover-stay-time="60"
+          hover-stop-propagation="true"
+          catchtap="onWantTap"
+        >
+          <text class="card-act-sym">馋</text>
+        </view>
+        <view
+          class="card-act card-act-like {{dish._liked ? 'is-on' : ''}} {{dish._likeBusy ? 'is-busy' : ''}}"
+          hover-class="tap-shrink"
+          hover-stay-time="60"
+          hover-stop-propagation="true"
+          catchtap="onLikeTap"
+        >
+          <text class="card-act-sym">♥</text>
+        </view>
+        <view
+          class="card-act card-act-order {{menuReady ? '' : 'is-off'}} {{dish._order === 'busy' ? 'is-busy' : ''}} {{dish._order === 'done' ? 'is-done' : ''}}"
+          hover-class="tap-shrink"
+          hover-stay-time="60"
+          hover-stop-propagation="true"
+          catchtap="onOrderTap"
+        >
+          <text class="card-act-sym">+</text>
+        </view>
       </view>
     </view>
   </view>

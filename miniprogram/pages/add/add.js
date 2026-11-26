@@ -13,6 +13,53 @@ var TAG_COUNT_MAX = 5;
 var TAG_LEN_MAX = 8;
 var IMAGES_MAX = 8;
 var IMAGE_EXT = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
+var INGREDIENT_COUNT_MAX = 20;
+var INGREDIENT_LEN_MAX = 20;
+var SEASONING_COUNT_MAX = 20;
+var SEASONING_LEN_MAX = 20;
+
+// 烹饪方式白名单（SPEC-v1.0.8 §1.1），分组与词序照原样，共 41 个词；可多选、不限数量
+var METHOD_GROUPS = [
+  { key: 'fire', label: '火候', words: ['炒', '爆', '熘', '煸', '炝', '干煸'] },
+  { key: 'oil', label: '油烹', words: ['炸', '煎', '烙', '烤', '炭烤', '熏', '焗'] },
+  { key: 'steam', label: '汽烹', words: ['蒸', '清蒸', '粉蒸'] },
+  { key: 'water', label: '水烹', words: ['煮', '炖', '焖', '煨', '烧', '红烧', '烩', '汆', '涮', '熬', '焯'] },
+  { key: 'cold', label: '冷处理', words: ['拌', '凉拌', '腌', '卤', '酱', '醉', '糟'] },
+  { key: 'other', label: '其他', words: ['白灼', '糖醋', '拔丝', '干锅', '砂锅', '铁板', '水煮'] }
+];
+
+/* ---------- 数组字段的防御式读写：缺失、类型不对都不抛错 ---------- */
+
+function readStringList(value) {
+  var list = [];
+  if (!value || typeof value.length !== 'number') {
+    return list;
+  }
+  for (var i = 0; i < value.length; i++) {
+    if (typeof value[i] === 'string' && value[i]) {
+      list.push(value[i]);
+    }
+  }
+  return list;
+}
+
+// 面板视图：把白名单展开成带 selected 标记的分组，选中态与 data.methods 实时同步
+function buildMethodGroups(selected) {
+  var picked = readStringList(selected);
+  var groups = [];
+  for (var i = 0; i < METHOD_GROUPS.length; i++) {
+    var source = METHOD_GROUPS[i];
+    var words = [];
+    for (var j = 0; j < source.words.length; j++) {
+      words.push({
+        name: source.words[j],
+        selected: picked.indexOf(source.words[j]) >= 0
+      });
+    }
+    groups.push({ key: source.key, label: source.label, words: words });
+  }
+  return groups;
+}
 
 // 同一批图片连续上传可能落在同一毫秒，用自增序号保证 cloudPath 不撞车
 var pathSeq = 0;
@@ -234,6 +281,10 @@ Page({
     tagCountMax: TAG_COUNT_MAX,
     tagLenMax: TAG_LEN_MAX,
     imagesMax: IMAGES_MAX,
+    ingredientCountMax: INGREDIENT_COUNT_MAX,
+    ingredientLenMax: INGREDIENT_LEN_MAX,
+    seasoningCountMax: SEASONING_COUNT_MAX,
+    seasoningLenMax: SEASONING_LEN_MAX,
     name: '',
     nameLen: 0,
     story: '',
@@ -243,6 +294,14 @@ Page({
     images: [],
     tags: [],
     tagInput: '',
+    ingredients: [],
+    ingredientInput: '',
+    seasonings: [],
+    seasoningInput: '',
+    methods: [],
+    // 烹饪方式页内浮层：开启时用 methodGroups 渲染分组，选中态跟 methods 一起重算
+    methodPanel: false,
+    methodGroups: buildMethodGroups([]),
     nickname: '',
     uploading: false,
     submitting: false,
@@ -524,6 +583,139 @@ Page({
     this.setData({ tags: list });
   },
 
+  /* ---------- 材料 / 调料（与「标签」同一套胶囊交互） ---------- */
+
+  onIngredientInput: function (event) {
+    this.setData({ ingredientInput: (event.detail && event.detail.value) || '' });
+  },
+
+  onIngredientConfirm: function () {
+    this.addIngredient();
+  },
+
+  onAddIngredient: function () {
+    this.addIngredient();
+  },
+
+  addIngredient: function () {
+    var value = (this.data.ingredientInput || '').trim();
+    if (!value) {
+      return;
+    }
+    if (value.length > INGREDIENT_LEN_MAX) {
+      toast('每项材料最多 20 个字');
+      return;
+    }
+    var list = readStringList(this.data.ingredients);
+    if (list.length >= INGREDIENT_COUNT_MAX) {
+      toast('最多 20 项材料');
+      return;
+    }
+    if (list.indexOf(value) >= 0) {
+      this.setData({ ingredientInput: '' });
+      return;
+    }
+    this.setData({ ingredients: list.concat([value]), ingredientInput: '' });
+  },
+
+  onRemoveIngredient: function (event) {
+    var index = Number(event && event.currentTarget && event.currentTarget.dataset
+      ? event.currentTarget.dataset.index
+      : NaN);
+    var list = readStringList(this.data.ingredients);
+    // 用「不成立就返回」判断，NaN（dataset 丢了）也一并挡掉，不会误删第 0 项
+    if (!(index >= 0 && index < list.length)) {
+      return;
+    }
+    list.splice(index, 1);
+    this.setData({ ingredients: list });
+  },
+
+  onSeasoningInput: function (event) {
+    this.setData({ seasoningInput: (event.detail && event.detail.value) || '' });
+  },
+
+  onSeasoningConfirm: function () {
+    this.addSeasoning();
+  },
+
+  onAddSeasoning: function () {
+    this.addSeasoning();
+  },
+
+  addSeasoning: function () {
+    var value = (this.data.seasoningInput || '').trim();
+    if (!value) {
+      return;
+    }
+    if (value.length > SEASONING_LEN_MAX) {
+      toast('每项调料最多 20 个字');
+      return;
+    }
+    var list = readStringList(this.data.seasonings);
+    if (list.length >= SEASONING_COUNT_MAX) {
+      toast('最多 20 项调料');
+      return;
+    }
+    if (list.indexOf(value) >= 0) {
+      this.setData({ seasoningInput: '' });
+      return;
+    }
+    this.setData({ seasonings: list.concat([value]), seasoningInput: '' });
+  },
+
+  onRemoveSeasoning: function (event) {
+    var index = Number(event && event.currentTarget && event.currentTarget.dataset
+      ? event.currentTarget.dataset.index
+      : NaN);
+    var list = readStringList(this.data.seasonings);
+    if (!(index >= 0 && index < list.length)) {
+      return;
+    }
+    list.splice(index, 1);
+    this.setData({ seasonings: list });
+  },
+
+  /* ---------- 烹饪方式（白名单多选 + 页内浮层） ---------- */
+
+  onOpenMethodPanel: function () {
+    this.setData({ methodPanel: true, methodGroups: buildMethodGroups(this.data.methods) });
+  },
+
+  onCloseMethodPanel: function () {
+    this.setData({ methodPanel: false });
+  },
+
+  // 再点一次取消选中；不限数量，所以不做上限判断
+  onToggleMethod: function (event) {
+    var dataset = event && event.currentTarget ? event.currentTarget.dataset : null;
+    var name = dataset && typeof dataset.name === 'string' ? dataset.name : '';
+    if (!name) {
+      return;
+    }
+    var list = readStringList(this.data.methods);
+    var at = list.indexOf(name);
+    if (at >= 0) {
+      list.splice(at, 1);
+    } else {
+      list.push(name);
+    }
+    // 面板开着就即时高亮；关掉面板后 methodGroups 也是最新的，再打开保留已选
+    this.setData({ methods: list, methodGroups: buildMethodGroups(list) });
+  },
+
+  onRemoveMethod: function (event) {
+    var index = Number(event && event.currentTarget && event.currentTarget.dataset
+      ? event.currentTarget.dataset.index
+      : NaN);
+    var list = readStringList(this.data.methods);
+    if (!(index >= 0 && index < list.length)) {
+      return;
+    }
+    list.splice(index, 1);
+    this.setData({ methods: list, methodGroups: buildMethodGroups(list) });
+  },
+
   /* ---------- 访客昵称 ---------- */
 
   onNicknameInput: function (event) {
@@ -557,13 +749,24 @@ Page({
     }
     var story = (this.data.story || '').trim();
     if (story.length > STORY_MAX) {
-      toast('一句话说明最多 200 个字');
+      toast('想说的话最多 200 个字');
       return;
     }
     if (this.data.tags.length > TAG_COUNT_MAX) {
       toast('最多 5 个标签');
       return;
     }
+    var ingredients = readStringList(this.data.ingredients);
+    if (ingredients.length > INGREDIENT_COUNT_MAX) {
+      toast('最多 20 项材料');
+      return;
+    }
+    var seasonings = readStringList(this.data.seasonings);
+    if (seasonings.length > SEASONING_COUNT_MAX) {
+      toast('最多 20 项调料');
+      return;
+    }
+    var methods = readStringList(this.data.methods);
 
     var images = [];
     for (var i = 0; i < this.data.images.length; i++) {
@@ -584,6 +787,10 @@ Page({
       cover: this.data.cover.id || '',
       images: images,
       story: story,
+      // v1.0.8：材料 / 调料 / 烹饪方式；story 仍是原来那个字段，只是文案改成「想说的话」
+      ingredients: ingredients,
+      seasonings: seasonings,
+      methods: methods,
       tags: this.data.tags.slice(),
       // 头像昵称一起进 submitter；本地没设置过就是空串，后端按空处理
       avatar: readAvatar()
@@ -630,6 +837,13 @@ Page({
       images: [],
       tags: [],
       tagInput: '',
+      ingredients: [],
+      ingredientInput: '',
+      seasonings: [],
+      seasoningInput: '',
+      methods: [],
+      methodPanel: false,
+      methodGroups: buildMethodGroups([]),
       submitting: false,
       uploading: false,
       canSubmit: false

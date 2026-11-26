@@ -16,8 +16,9 @@ const login = require('./routes/login');
 const dish = require('./routes/dish');
 const order = require('./routes/order');
 const profile = require('./routes/profile');
+const menu = require('./routes/menu');
 
-/** action -> 处理函数（SPEC §4 表格全量） */
+/** action -> 处理函数（SPEC §4 表格 + SPEC-v1.0.8 §2.1 表格全量） */
 const ROUTES = {
   login: login,
   'dish.list': dish.list,
@@ -28,9 +29,30 @@ const ROUTES = {
   'dish.mine': dish.mine,
   'dish.reviewList': dish.reviewList,
   'dish.review': dish.review,
+  // v1.0.8：修改提案 / 反应
+  'dish.edit': dish.edit,
+  'dish.editList': dish.editList,
+  'dish.editReview': dish.editReview,
+  'dish.editHistory': dish.editHistory,
+  'dish.like': dish.like,
+  'dish.unlike': dish.unlike,
+  'dish.want': dish.want,
+  'dish.unwant': dish.unwant,
+  // v1.0.8 §4.3：点过这道菜的人
+  'dish.orderers': dish.orderers,
   'order.create': order.create,
   'order.list': order.list,
   'order.done': order.done,
+  // v1.0.8：取消点菜（不物理删除，只改状态）
+  'order.cancel': order.cancel,
+  // v1.0.8：点菜单会话
+  'menu.current': menu.current,
+  'menu.start': menu.start,
+  'menu.close': menu.close,
+  'menu.list': menu.list,
+  'menu.detail': menu.detail,
+  // v1.0.8 §4.3：结束点菜单后的逐菜确认（cookedCount 唯一增加点）
+  'menu.review': menu.review,
   'profile.get': profile.get,
   'profile.save': profile.save,
 };

@@ -14,8 +14,53 @@ var MAX_TAGS = 20;
 var GUIDE_SKIP_KEY = 'profileGuideSkipped';
 var MAX_NICKNAME = 20;
 
+// 卡片小按钮「已加」态的停留时间：只用于防连点，过了就回到可点
+var ORDER_DONE_HOLD_MS = 1500;
+var NO_MENU_LABEL = '还没可以点菜哦~';
+
 function toast(title) {
   wx.showToast({ title: title, icon: 'none', duration: 2000 });
+}
+
+function myOpenid() {
+  try {
+    var app = getApp();
+    return (app && app.globalData && app.globalData.openid) || '';
+  } catch (err) {
+    return '';
+  }
+}
+
+// likes / wants 都是 [{ openid, nickname, avatar, at }]，判断我有没有点过（SPEC-v1.0.8 §1.1）
+function hasPerson(list, openid) {
+  if (!openid || !Array.isArray(list)) {
+    return false;
+  }
+  for (var i = 0; i < list.length; i += 1) {
+    var row = list[i];
+    if (row && typeof row === 'object' && row.openid === openid) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// 卡片的本地态挂在 _ 开头的字段上：不改写接口返回的对象，也不污染 dish-card 用的字段
+function decorateDish(dish, openid) {
+  var out = {};
+  var key;
+  for (key in dish) {
+    if (Object.prototype.hasOwnProperty.call(dish, key)) {
+      out[key] = dish[key];
+    }
+  }
+  out._liked = hasPerson(dish.likes, openid);
+  out._wanted = hasPerson(dish.wants, openid);
+  out._likeBusy = false;
+  out._wantBusy = false;
+  // '' | 'busy'（请求中）| 'done'（已加入点菜单，短暂停留）
+  out._order = '';
+  return out;
 }
 
 function readStorage(key) {
@@ -91,11 +136,17 @@ Page({
     endReached: false,
     emptyText: '还没有菜品上架',
     emptyHint: '等主人家端上第一道菜',
+    // 点菜前置：有 open 且未过期的菜单才能点（SPEC-v1.0.8 §3.4），onShow 时刷新
+    menuReady: false,
     // 首次进入引导（可跳过）：guideAvatarUrl 存本地临时路径，点「保存」时才上传
     guideVisible: false,
     guideNickname: '',
     guideAvatarUrl: '',
-    guideSaving: false
+    guideSaving: false,
+    // 「谁点过这道菜」浮层（SPEC-v1.0.8 §4.3）：页面只传 id / 菜名，数据由组件自己拉
+    orderersVisible: false,
+    orderersDishId: '',
+    orderersDishName: ''
   },
 
   /* ---------- 生命周期 ---------- */
@@ -118,6 +169,8 @@ Page({
       this.getTabBar().setData({ selected: 0 });
     }
     this.navigating = false;
+    // 每次回到菜谱页都重新取一次菜单状态：可能刚在菜单球里开始 / 结束了点菜
+    this.refreshMenu();
     // 引导只在首页判断（别的页面不弹），且每次进入 App 最多判断一次
     this.maybeShowProfileGuide();
     // 首次进入不重复请求；只有「离开过本页再回来」（如从添加页返回）才静默刷新
@@ -136,6 +189,7 @@ Page({
 
   onUnload: function () {
     this.clearSearchTimer();
+    this.clearOrderTimers();
   },
 
   /* ---------- 首次进入引导：补昵称 / 头像（可跳过） ---------- */
@@ -325,7 +379,14 @@ Page({
   applyPage: function (result, page, replace, query) {
     var payload = result || {};
     var incoming = Array.isArray(payload.list) ? payload.list : [];
-    var list = replace ? incoming : this.data.list.concat(incoming);
+    // 落库前先给每道菜挂上卡片操作条的本地态（是否已喜欢 / 已想吃 / 点菜状态）
+    var openid = myOpenid();
+    var decorated = [];
+    for (var i = 0; i < incoming.length; i += 1) {
+      var row = incoming[i];
+      decorated.push(row && typeof row === 'object' ? decorateDish(row, openid) : row);
+    }
+    var list = replace ? decorated : this.data.list.concat(decorated);
     var columns = this.splitColumns(list);
     var hasMore = payload.hasMore !== false;
     var empty = this.buildEmpty(list.length === 0, query);
@@ -433,6 +494,214 @@ Page({
     this.setData({ activeTag: this.data.activeTag === tag ? '' : tag });
     this.clearSearchTimer();
     this.reload({ skeleton: false });
+  },
+
+  /* ---------- 菜单状态（点菜前置，SPEC-v1.0.8 §3.4） ---------- */
+
+  refreshMenu: function () {
+    var self = this;
+    return api.menuCurrent().then(function (menu) {
+      // menu.current 只返回 open 的菜单，出参再带一个 expired 布尔
+      var ready = !!(menu && menu.expired !== true && menu.status !== 'closed');
+      self.setData({ menuReady: ready });
+    }, function (err) {
+      // 读不到菜单就当没有：宁可让按钮置灰，也不要让用户点了再被服务端拒绝
+      console.error('[index] 菜单状态读取失败', err);
+      self.setData({ menuReady: false });
+    });
+  },
+
+  /* ---------- 卡片操作条：点菜 / 喜欢 / 想吃（SPEC-v1.0.8 §3.8） ---------- */
+
+  // 找到菜品在左右两列里的位置：只按精确路径 setData，避免整列重渲染
+  locateDish: function (id) {
+    var groups = ['leftColumn', 'rightColumn'];
+    for (var g = 0; g < groups.length; g += 1) {
+      var column = this.data[groups[g]] || [];
+      for (var i = 0; i < column.length; i += 1) {
+        if (column[i] && column[i]._id === id) {
+          return { key: groups[g] + '[' + i + ']', dish: column[i] };
+        }
+      }
+    }
+    return null;
+  },
+
+  // 把一批字段收敛成一次 setData：{ 'leftColumn[0]._liked': true, ... }
+  setDishFields: function (key, fields) {
+    var patch = {};
+    for (var field in fields) {
+      if (Object.prototype.hasOwnProperty.call(fields, field)) {
+        patch[key + '.' + field] = fields[field];
+      }
+    }
+    this.setData(patch);
+  },
+
+  // 响应回来时按 id 重新定位再写：请求期间列表可能已刷新重排，旧索引会写到别的菜上
+  writeDishFields: function (id, fields) {
+    var spot = this.locateDish(id);
+    if (!spot) {
+      return;
+    }
+    this.setDishFields(spot.key, fields);
+  },
+
+  // 点菜：必须有进行中的菜单；成功后按钮短暂进「已加」态防连点
+  onOrderTap: function (event) {
+    var id = (event && event.currentTarget ? event.currentTarget.dataset.id : '') || '';
+    if (!id) {
+      return;
+    }
+    // 没有进行中的点菜单：按钮已置灰，这里只提示，绝不进入下单链路
+    if (!this.data.menuReady) {
+      toast(NO_MENU_LABEL);
+      return;
+    }
+    var spot = this.locateDish(id);
+    if (!spot || spot.dish._order) {
+      return;
+    }
+    var self = this;
+    var key = spot.key;
+    var task;
+    this.setDishFields(key, { _order: 'busy' });
+    // 点菜人身份：缓存里的昵称 / 头像，没有就传空串（后端允许）
+    var profile = { nickname: readStorage('nickname'), avatar: readStorage('avatar') };
+    try {
+      task = api.orderCreate(id, '', profile);
+    } catch (err) {
+      console.error('[index] 点菜调用异常', err);
+      this.setDishFields(key, { _order: '' });
+      return;
+    }
+    task.then(function () {
+      self.writeDishFields(id, { _order: 'done' });
+      toast('已加入点菜单');
+      // 「已加」只停留一会儿；到点按最新位置复位（期间可能已刷新重排）
+      self.orderTimers = self.orderTimers || {};
+      if (self.orderTimers[id]) {
+        clearTimeout(self.orderTimers[id]);
+      }
+      self.orderTimers[id] = setTimeout(function () {
+        delete self.orderTimers[id];
+        self.writeDishFields(id, { _order: '' });
+      }, ORDER_DONE_HOLD_MS);
+    }, function (err) {
+      // api.js 已 toast；这里把按钮退回可点，不假装成功
+      console.error('[index] 点菜失败', err);
+      self.writeDishFields(id, { _order: '' });
+    });
+  },
+
+  // 喜欢：乐观更新 + 失败回滚（§3.5 重复点幂等，不会记两次）
+  onLikeTap: function (event) {
+    var id = (event && event.currentTarget ? event.currentTarget.dataset.id : '') || '';
+    var spot = id ? this.locateDish(id) : null;
+    if (!spot || spot.dish._likeBusy) {
+      return;
+    }
+    var self = this;
+    var key = spot.key;
+    var wasLiked = !!spot.dish._liked;
+    var task;
+    this.setDishFields(key, { _liked: !wasLiked, _likeBusy: true });
+    try {
+      task = wasLiked ? api.dishUnlike(id) : api.dishLike(id);
+    } catch (err) {
+      console.error('[index] 喜欢调用异常', err);
+      this.setDishFields(key, { _liked: wasLiked, _likeBusy: false });
+      return;
+    }
+    task.then(function (result) {
+      var data = result || {};
+      // 服务端回了完整 likes 就按它校准，没回就保留乐观值
+      var liked = data.liked === true
+        ? true
+        : (Array.isArray(data.likes) ? hasPerson(data.likes, myOpenid()) : !wasLiked);
+      self.writeDishFields(id, { _liked: liked, _likeBusy: false });
+    }, function (err) {
+      // api.js 已统一 toast；这里回滚到点击前的状态
+      console.error('[index] 喜欢切换失败', err);
+      self.writeDishFields(id, { _liked: wasLiked, _likeBusy: false });
+    });
+  },
+
+  // 想吃：同上，走 dishWant / dishUnwant
+  onWantTap: function (event) {
+    var id = (event && event.currentTarget ? event.currentTarget.dataset.id : '') || '';
+    var spot = id ? this.locateDish(id) : null;
+    if (!spot || spot.dish._wantBusy) {
+      return;
+    }
+    var self = this;
+    var key = spot.key;
+    var wasWanted = !!spot.dish._wanted;
+    var task;
+    this.setDishFields(key, { _wanted: !wasWanted, _wantBusy: true });
+    try {
+      task = wasWanted ? api.dishUnwant(id) : api.dishWant(id);
+    } catch (err) {
+      console.error('[index] 想吃调用异常', err);
+      this.setDishFields(key, { _wanted: wasWanted, _wantBusy: false });
+      return;
+    }
+    task.then(function (result) {
+      var data = result || {};
+      var wanted = Array.isArray(data.wants) ? hasPerson(data.wants, myOpenid()) : !wasWanted;
+      self.writeDishFields(id, { _wanted: wanted, _wantBusy: false });
+    }, function (err) {
+      console.error('[index] 想吃切换失败', err);
+      self.writeDishFields(id, { _wanted: wasWanted, _wantBusy: false });
+    });
+  },
+
+  /* ---------- dish-card 事件转发 ----------
+   * 卡片里的三个按钮用 triggerEvent 把 id 抛出来（detail.id），
+   * 这里只做一层薄包装，把 detail 还原成原来的 currentTarget.dataset.id，
+   * 三个原有处理函数一行不动地复用。
+   */
+
+  onCardOrder: function (event) {
+    return this.onOrderTap({ currentTarget: { dataset: { id: (event && event.detail && event.detail.id) || '' } } });
+  },
+
+  onCardLike: function (event) {
+    return this.onLikeTap({ currentTarget: { dataset: { id: (event && event.detail && event.detail.id) || '' } } });
+  },
+
+  onCardWant: function (event) {
+    return this.onWantTap({ currentTarget: { dataset: { id: (event && event.detail && event.detail.id) || '' } } });
+  },
+
+  /* ---------- 「谁点过这道菜」浮层（SPEC-v1.0.8 §4.3） ---------- */
+
+  // 卡片「被点 N 次」整块被点：只负责打开浮层，数据由组件自己拉
+  onCardOrderers: function (event) {
+    var d = (event && event.detail) || {};
+    var id = d.id || '';
+    if (!id) {
+      return;
+    }
+    this.setData({
+      orderersVisible: true,
+      orderersDishId: id,
+      orderersDishName: d.name || ''
+    });
+  },
+
+  onOrderersClose: function () {
+    this.setData({ orderersVisible: false });
+  },
+
+  clearOrderTimers: function () {
+    var timers = this.orderTimers || {};
+    for (var id in timers) {
+      if (Object.prototype.hasOwnProperty.call(timers, id)) {
+        clearTimeout(timers[id]);
+      }
+    }
+    this.orderTimers = {};
   },
 
   /* ---------- 跳转 ---------- */

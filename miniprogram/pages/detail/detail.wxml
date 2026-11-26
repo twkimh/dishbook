@@ -24,40 +24,364 @@
       </view>
     </view>
 
-    <!-- 菜名：手帐风标题 + 手绘下划装饰（.page-title 自带波浪下划线） -->
+    <!-- 菜名：手帐风标题 + 手绘下划装饰；右侧是修改入口（所有已上架菜品都可提修改） -->
     <view class="page-head detail-head">
       <view class="page-title">{{dish.name}}</view>
+      <view class="edit-entry tap" hover-class="tap-shrink" hover-stay-time="60" bindtap="onOpenEdit">修改</view>
     </view>
 
     <view wx:if="{{tagList.length}}" class="detail-tags">
       <tag-chip wx:for="{{tagList}}" wx:key="text" text="{{item.text}}" tone="{{item.tone}}" />
     </view>
 
-    <view wx:if="{{dish.story}}" class="detail-story">{{dish.story}}</view>
-
     <view class="dashed detail-dashed"></view>
 
+    <!-- 被点次数（SPEC-v1.0.8 §4）：语义是「主人家确认做过的次数」，整块可点开「谁点过这道菜」浮层 -->
     <view class="detail-meta">
-      <view class="meta-item">
+      <view
+        class="meta-item tap"
+        hover-class="tap-shrink"
+        hover-stay-time="60"
+        bindtap="onOrderersTap"
+      >
         <view class="meta-value">{{cookedText}}</view>
-        <view class="meta-label">被点次数</view>
+        <view class="meta-label">被点次数 ›</view>
       </view>
       <view class="meta-item">
         <view class="meta-value meta-value-sm">{{createdText}}</view>
         <view class="meta-label">收录于</view>
       </view>
     </view>
+
+    <!-- 提供者 / 参与者：参与者一行可点，展开修改记录浮层 -->
+    <view class="person-block">
+      <view class="person-row">
+        <view class="person-label">提供者</view>
+        <block wx:if="{{submitterAvatar && !submitterBroken}}">
+          <image
+            class="person-avatar"
+            src="{{submitterAvatar}}"
+            mode="aspectFill"
+            binderror="onSubmitterAvatarError"
+          />
+        </block>
+        <view wx:else class="person-avatar person-avatar-fallback">{{submitterInitial}}</view>
+        <text class="person-name">{{submitterName}}</text>
+      </view>
+
+      <view
+        wx:if="{{contributorCount}}"
+        class="person-row person-row-tap tap"
+        hover-class="tap-shrink"
+        hover-stay-time="60"
+        bindtap="onOpenHistory"
+      >
+        <view class="person-label">参与者</view>
+        <view class="avatar-stack">
+          <block wx:for="{{contributorStack}}" wx:key="key">
+            <image
+              wx:if="{{item.avatar && !item.broken}}"
+              class="stack-avatar"
+              src="{{item.avatar}}"
+              mode="aspectFill"
+              data-index="{{index}}"
+              binderror="onContributorAvatarError"
+            />
+            <view wx:else class="stack-avatar stack-avatar-fallback">{{item.initial}}</view>
+          </block>
+        </view>
+        <text wx:if="{{contributorMore}}" class="person-more">+{{contributorMore}}</text>
+        <text class="person-arrow">›</text>
+      </view>
+    </view>
+
+    <view class="dashed detail-dashed detail-dashed-tight"></view>
+
+    <!-- 材料 / 调料 / 做法 / 想说的话：空则整块不渲染 -->
+    <view wx:if="{{ingredients.length}}" class="section">
+      <view class="section-title">材料</view>
+      <view class="pill-list">
+        <view wx:for="{{ingredients}}" wx:key="*this" class="pill">{{item}}</view>
+      </view>
+    </view>
+
+    <view wx:if="{{seasonings.length}}" class="section">
+      <view class="section-title">调料</view>
+      <view class="pill-list">
+        <view wx:for="{{seasonings}}" wx:key="*this" class="pill pill-sage">{{item}}</view>
+      </view>
+    </view>
+
+    <view wx:if="{{methodsText}}" class="section">
+      <view class="section-title">做法</view>
+      <view class="methods-text">{{methodsText}}</view>
+    </view>
+
+    <view wx:if="{{storyText}}" class="section">
+      <view class="section-title">想说的话</view>
+      <view class="detail-story">{{storyText}}</view>
+    </view>
   </block>
 
   <empty-state wx:else text="这道菜找不到了" hint="可能已经被主人家删掉了" />
 
-  <!-- 底部固定点菜按钮 -->
+  <!-- 底部固定操作条：上排「喜欢 / 想吃」各占一半，下排「点这道菜」整行 -->
   <view wx:if="{{dish}}" class="order-bar">
+    <view class="act-row">
+      <view class="act-col">
+        <view
+          class="act-btn act-like {{liked ? 'is-on' : ''}} {{likeBusy ? 'is-busy' : ''}}"
+          hover-class="{{likeBusy ? 'none' : 'tap-shrink'}}"
+          hover-stay-time="60"
+          bindtap="onLikeTap"
+        >
+          <text class="act-icon">♥</text>
+          <text class="act-label">喜欢</text>
+          <text class="act-count">{{likeCountText}}</text>
+        </view>
+        <view class="act-avatars">
+          <block wx:for="{{likePreview}}" wx:key="key">
+            <image
+              wx:if="{{item.avatar && !item.broken}}"
+              class="act-avatar"
+              src="{{item.avatar}}"
+              mode="aspectFill"
+              data-list="likes"
+              data-index="{{index}}"
+              bindtap="onAvatarTap"
+              binderror="onAvatarError"
+            />
+            <view
+              wx:else
+              class="act-avatar act-avatar-fallback"
+              data-list="likes"
+              data-index="{{index}}"
+              bindtap="onAvatarTap"
+            >{{item.initial}}</view>
+          </block>
+          <text wx:if="{{likeExtra}}" class="act-more">+{{likeExtra}}</text>
+          <text wx:if="{{!likePreview.length}}" class="act-empty">还没有人喜欢</text>
+        </view>
+        <view class="act-tip {{likeTip ? 'is-show' : ''}}">{{likeTip}}</view>
+      </view>
+
+      <view class="act-col">
+        <view
+          class="act-btn act-want {{wanted ? 'is-on' : ''}} {{wantBusy ? 'is-busy' : ''}}"
+          hover-class="{{wantBusy ? 'none' : 'tap-shrink'}}"
+          hover-stay-time="60"
+          bindtap="onWantTap"
+        >
+          <text class="act-icon">馋</text>
+          <text class="act-label">想吃</text>
+          <text class="act-count">{{wantCountText}}</text>
+        </view>
+        <view class="act-avatars">
+          <block wx:for="{{wantPreview}}" wx:key="key">
+            <image
+              wx:if="{{item.avatar && !item.broken}}"
+              class="act-avatar"
+              src="{{item.avatar}}"
+              mode="aspectFill"
+              data-list="wants"
+              data-index="{{index}}"
+              bindtap="onAvatarTap"
+              binderror="onAvatarError"
+            />
+            <view
+              wx:else
+              class="act-avatar act-avatar-fallback"
+              data-list="wants"
+              data-index="{{index}}"
+              bindtap="onAvatarTap"
+            >{{item.initial}}</view>
+          </block>
+          <text wx:if="{{wantExtra}}" class="act-more">+{{wantExtra}}</text>
+          <text wx:if="{{!wantPreview.length}}" class="act-empty">还没有人想吃</text>
+        </view>
+        <view class="act-tip {{wantTip ? 'is-show' : ''}}">{{wantTip}}</view>
+      </view>
+    </view>
+
     <view
-      class="sketch-btn order-btn {{ordering || ordered ? 'order-btn-busy' : ''}}"
-      hover-class="{{ordering || ordered ? 'none' : 'tap-shrink'}}"
+      class="sketch-btn order-btn {{menuReady ? '' : 'order-btn-disabled'}} {{ordering || ordered ? 'order-btn-busy' : ''}}"
+      hover-class="{{menuReady && !ordering && !ordered ? 'tap-shrink' : 'none'}}"
       hover-stay-time="60"
       bindtap="onOrderTap"
-    >{{ordered ? '已点 · 主人家能看到' : (ordering ? '正在点菜…' : '点这道菜')}}</view>
+    >
+      <text wx:if="{{menuReady}}" class="act-icon">+</text>
+      <text class="act-label">{{menuReady ? (ordered ? '已点 · 主人家能看到' : (ordering ? '正在点菜…' : '点这道菜')) : noMenuLabel}}</text>
+    </view>
   </view>
+
+  <!-- 参与者：修改记录浮层（按时间倒序，含修改人 / 时间 / 状态 / 改了什么） -->
+  <view wx:if="{{historyOpen}}" class="sheet-mask" catchtap="onCloseHistory" catchtouchmove="noop">
+    <view class="sheet" catchtap="noop">
+      <view class="sheet-head">
+        <text class="sheet-title">参与者 · 修改记录</text>
+        <text class="sheet-close" catchtap="onCloseHistory">×</text>
+      </view>
+      <scroll-view class="sheet-body" scroll-y>
+        <view wx:if="{{historyLoading}}" class="sheet-hint">正在读取修改记录…</view>
+        <view wx:elif="{{!historyList.length}}" class="sheet-hint">还没有人改过这道菜</view>
+        <block wx:else>
+          <view wx:for="{{historyList}}" wx:key="key" class="history-item">
+            <view class="history-head">
+              <image
+                wx:if="{{item.avatar && !item.broken}}"
+                class="history-avatar"
+                src="{{item.avatar}}"
+                mode="aspectFill"
+                data-index="{{index}}"
+                binderror="onHistoryAvatarError"
+              />
+              <view wx:else class="history-avatar history-avatar-fallback">{{item.initial}}</view>
+              <view class="history-person">
+                <view class="history-name">{{item.nickname}}</view>
+                <view class="history-time">{{item.timeText}}</view>
+              </view>
+              <view class="history-status status-{{item.status}}">{{item.statusText}}</view>
+            </view>
+            <view class="history-line">菜名：{{item.name}}</view>
+            <view class="history-line">做法：{{item.methodText}}</view>
+          </view>
+        </block>
+      </scroll-view>
+    </view>
+  </view>
+
+  <!-- 改菜浮层：菜名 / 想说的话 / 材料 / 调料 / 做法 -->
+  <view wx:if="{{editOpen}}" class="sheet-mask" catchtap="onCloseEdit" catchtouchmove="noop">
+    <view class="sheet sheet-tall" catchtap="noop">
+      <view class="sheet-head">
+        <text class="sheet-title">修改这道菜</text>
+        <text class="sheet-close" catchtap="onCloseEdit">×</text>
+      </view>
+      <scroll-view class="sheet-body" scroll-y>
+        <view wx:if="{{editLoading}}" class="sheet-hint">正在读取…</view>
+        <block wx:else>
+          <view class="form-row">
+            <view class="form-head">
+              <text class="form-label">菜名</text>
+              <text class="form-counter {{editNameLen > nameMax ? 'form-counter-over' : ''}}">{{editNameLen}}/{{nameMax}}</text>
+            </view>
+            <input
+              class="form-input"
+              value="{{editName}}"
+              maxlength="{{nameMax}}"
+              placeholder="比如 番茄炒蛋"
+              placeholder-class="ph"
+              bindinput="onEditNameInput"
+            />
+          </view>
+
+          <view class="form-row">
+            <view class="form-head">
+              <text class="form-label">想说的话</text>
+              <text class="form-counter {{editStoryLen > storyMax ? 'form-counter-over' : ''}}">{{editStoryLen}}/{{storyMax}}</text>
+            </view>
+            <textarea
+              class="form-textarea"
+              value="{{editStory}}"
+              maxlength="{{storyMax}}"
+              placeholder="这道菜的来历，或者做法上的一句话"
+              placeholder-class="ph"
+              auto-height
+              bindinput="onEditStoryInput"
+            />
+          </view>
+
+          <view class="form-row">
+            <view class="form-head">
+              <text class="form-label">材料</text>
+              <text class="form-counter">{{editIngredients.length}}/{{itemMax}}</text>
+            </view>
+            <view wx:if="{{editIngredients.length}}" class="pill-list">
+              <view wx:for="{{editIngredients}}" wx:key="*this" class="pill">
+                <text class="pill-text">{{item}}</text>
+                <text class="pill-x" data-index="{{index}}" catchtap="onRemoveEditIngredient">×</text>
+              </view>
+            </view>
+            <view class="pill-input-row">
+              <input
+                class="pill-input"
+                value="{{editIngredientInput}}"
+                maxlength="{{itemLenMax}}"
+                placeholder="比如 番茄"
+                placeholder-class="ph"
+                confirm-type="done"
+                bindinput="onEditIngredientInput"
+                bindconfirm="onAddEditIngredient"
+              />
+              <view class="pill-add tap" hover-class="tap-shrink" hover-stay-time="60" bindtap="onAddEditIngredient">＋</view>
+            </view>
+          </view>
+
+          <view class="form-row">
+            <view class="form-head">
+              <text class="form-label">调料</text>
+              <text class="form-counter">{{editSeasonings.length}}/{{itemMax}}</text>
+            </view>
+            <view wx:if="{{editSeasonings.length}}" class="pill-list">
+              <view wx:for="{{editSeasonings}}" wx:key="*this" class="pill pill-sage">
+                <text class="pill-text">{{item}}</text>
+                <text class="pill-x" data-index="{{index}}" catchtap="onRemoveEditSeasoning">×</text>
+              </view>
+            </view>
+            <view class="pill-input-row">
+              <input
+                class="pill-input"
+                value="{{editSeasoningInput}}"
+                maxlength="{{itemLenMax}}"
+                placeholder="比如 生抽"
+                placeholder-class="ph"
+                confirm-type="done"
+                bindinput="onEditSeasoningInput"
+                bindconfirm="onAddEditSeasoning"
+              />
+              <view class="pill-add tap" hover-class="tap-shrink" hover-stay-time="60" bindtap="onAddEditSeasoning">＋</view>
+            </view>
+          </view>
+
+          <view class="form-row">
+            <view class="form-head">
+              <text class="form-label">做法</text>
+              <text class="form-counter">可多选</text>
+            </view>
+            <view class="method-wrap">
+              <view
+                wx:for="{{editMethods}}"
+                wx:key="name"
+                class="method-chip {{item.active ? 'is-on' : ''}}"
+                hover-class="tap-shrink"
+                hover-stay-time="60"
+                data-index="{{index}}"
+                bindtap="onToggleEditMethod"
+              >{{item.name}}</view>
+            </view>
+          </view>
+        </block>
+      </scroll-view>
+      <view class="sheet-foot">
+        <view class="sheet-btn sheet-btn-ghost tap" hover-class="tap-shrink" hover-stay-time="60" bindtap="onCloseEdit">取消</view>
+        <view
+          class="sheet-btn sheet-btn-main tap {{editLoading || editSubmitting ? 'is-disabled' : ''}}"
+          hover-class="{{editLoading || editSubmitting ? 'none' : 'tap-shrink'}}"
+          hover-stay-time="60"
+          bindtap="onSubmitEdit"
+        >{{editSubmitting ? '提交中…' : '保存修改'}}</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 菜单球（悬浮入口，组件无 props，SPEC-v1.0.8） -->
+  <menu-ball />
+
+  <!-- 谁点过这道菜：挂页面根节点（不能进带 transform 的 .paper），组件自己拉数据 -->
+  <orderers-sheet
+    visible="{{orderersVisible}}"
+    dish-id="{{orderersDishId}}"
+    dish-name="{{orderersDishName}}"
+    bind:close="onOrderersClose"
+  />
 </view>

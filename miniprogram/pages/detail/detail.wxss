@@ -1,9 +1,9 @@
-/* 详情页专属样式：非 tab 页，但底部有点菜按钮，需要留出空间
+/* 详情页专属样式：非 tab 页，但底部有操作条，需要留出空间
  * 只允许 var(--x) 与 rgba()，不写颜色字面量（SPEC §5）
  */
 
 .detail-page {
-  padding-bottom: 260rpx;
+  padding-bottom: 440rpx;
 }
 
 /* ---------- 封面 ---------- */
@@ -48,8 +48,24 @@
 }
 
 /* ---------- 标题 / 标签 / 说明 ---------- */
+/* 标题保持 inline-block（手绘下划线跟着文字走），修改入口绝对定位到右上角 */
 .detail-head {
+  position: relative;
   margin-bottom: 20rpx;
+  padding-right: 130rpx;
+}
+
+/* 修改入口：文字按钮，虚线描边 */
+.edit-entry {
+  position: absolute;
+  top: 6rpx;
+  right: 0;
+  padding: 6rpx 20rpx;
+  border: 2rpx dashed var(--accent-soft);
+  border-radius: 999rpx;
+  color: var(--accent);
+  font-size: 23rpx;
+  letter-spacing: 2rpx;
 }
 
 .detail-tags {
@@ -58,7 +74,7 @@
 }
 
 .detail-story {
-  margin-top: 18rpx;
+  margin-top: 12rpx;
   padding: 20rpx 24rpx;
   border-left: 6rpx solid var(--accent-soft);
   border-radius: 0 var(--radius) var(--radius) 0;
@@ -72,6 +88,10 @@
 
 .detail-dashed {
   margin: 30rpx 0 26rpx;
+}
+
+.detail-dashed-tight {
+  margin: 26rpx 0 20rpx;
 }
 
 /* ---------- 数据条 ---------- */
@@ -108,19 +128,326 @@
   letter-spacing: 2rpx;
 }
 
-/* ---------- 底部固定点菜按钮 ---------- */
+/* ---------- 提供者 / 参与者 ---------- */
+.person-block {
+  margin-top: 28rpx;
+}
+
+.person-row {
+  display: flex;
+  align-items: center;
+  min-height: 56rpx;
+  margin-bottom: 14rpx;
+}
+
+.person-row-tap {
+  padding: 6rpx 14rpx;
+  margin-left: -14rpx;
+  border-radius: var(--radius);
+  background-color: rgba(138, 123, 109, 0.08);
+}
+
+.person-label {
+  flex: none;
+  width: 100rpx;
+  color: var(--ink-soft);
+  font-size: 24rpx;
+  letter-spacing: 2rpx;
+}
+
+.person-avatar {
+  flex: none;
+  width: 52rpx;
+  height: 52rpx;
+  border-radius: 50%;
+  background-color: var(--line);
+}
+
+.person-avatar-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-soft);
+  font-size: 24rpx;
+}
+
+.person-name {
+  margin-left: 14rpx;
+  color: var(--ink);
+  font-size: 27rpx;
+  letter-spacing: 1rpx;
+}
+
+.avatar-stack {
+  display: flex;
+  align-items: center;
+}
+
+/* 叠放：相邻头像用负 margin 咬合，外圈描边取纸底色 */
+.stack-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52rpx;
+  height: 52rpx;
+  margin-right: -14rpx;
+  border: 3rpx solid var(--paper);
+  border-radius: 50%;
+  background-color: var(--line);
+  color: var(--ink-soft);
+  font-size: 22rpx;
+}
+
+.stack-avatar-fallback {
+  background-color: rgba(138, 123, 109, 0.20);
+}
+
+.person-more {
+  margin-left: 22rpx;
+  color: var(--ink-soft);
+  font-size: 23rpx;
+}
+
+.person-arrow {
+  margin-left: auto;
+  color: var(--ink-soft);
+  font-size: 32rpx;
+  opacity: 0.7;
+}
+
+/* ---------- 材料 / 调料 / 做法 / 想说的话 ---------- */
+.section {
+  margin-top: 24rpx;
+}
+
+.section-title {
+  margin-bottom: 12rpx;
+  color: var(--ink);
+  font-size: 27rpx;
+  font-weight: 600;
+  letter-spacing: 3rpx;
+}
+
+.section-title::before {
+  content: '';
+  display: inline-block;
+  width: 12rpx;
+  height: 12rpx;
+  margin-right: 12rpx;
+  border-radius: 50%;
+  background-color: var(--accent-soft);
+  vertical-align: middle;
+}
+
+.pill-list {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.pill {
+  display: flex;
+  align-items: center;
+  margin: 0 14rpx 14rpx 0;
+  padding: 8rpx 22rpx;
+  border-radius: 999rpx;
+  background-color: rgba(228, 100, 60, 0.12);
+  color: var(--ink);
+  font-size: 24rpx;
+  letter-spacing: 1rpx;
+}
+
+.pill-sage {
+  background-color: rgba(124, 154, 109, 0.16);
+}
+
+.pill-text {
+  max-width: 360rpx;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.pill-x {
+  margin-left: 12rpx;
+  color: var(--ink-soft);
+  font-size: 26rpx;
+}
+
+/* 多个烹饪方式之间用 + 连接，由 JS 拼好整串 */
+.methods-text {
+  display: inline-block;
+  padding: 10rpx 24rpx;
+  border: 2rpx dashed var(--accent-soft);
+  border-radius: var(--radius);
+  color: var(--accent);
+  font-size: 28rpx;
+  font-weight: 600;
+  letter-spacing: 3rpx;
+}
+
+/* ---------- 底部固定操作条 ---------- */
 .order-bar {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
+  z-index: 10;
   box-sizing: border-box;
-  padding: 20rpx 28rpx;
-  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
+  padding: 18rpx 24rpx;
+  padding-bottom: calc(18rpx + env(safe-area-inset-bottom));
   border-top: 2rpx dashed var(--line);
   background-color: var(--paper);
   background-image: radial-gradient(rgba(90, 62, 40, 0.04) 1rpx, transparent 1rpx);
   background-size: 22rpx 22rpx;
+}
+
+/* 上排两个动作各占一半：flex:1 均分，不写死宽度 */
+.act-row {
+  display: flex;
+  align-items: stretch;
+}
+
+.act-col {
+  flex: 1;
+  min-width: 0;
+}
+
+.act-col + .act-col {
+  margin-left: 16rpx;
+}
+
+.act-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 14rpx 12rpx;
+  border: 2rpx dashed transparent;
+  border-radius: var(--radius);
+  transition: transform 160ms ease;
+}
+
+.act-icon {
+  margin-right: 10rpx;
+  font-size: 30rpx;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.act-label {
+  font-size: 28rpx;
+  font-weight: 600;
+  letter-spacing: 2rpx;
+}
+
+.act-count {
+  margin-left: 10rpx;
+  font-size: 22rpx;
+  opacity: 0.75;
+}
+
+/* 喜欢：暖橙 */
+.act-like {
+  border-color: rgba(228, 100, 60, 0.30);
+  background-color: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* 已喜欢：实心高亮（图标与文字一起加深、加粗） */
+.act-like.is-on {
+  border-color: var(--accent);
+  background-color: var(--accent);
+  color: var(--card);
+}
+
+.act-like.is-on .act-icon,
+.act-like.is-on .act-label {
+  font-weight: 800;
+}
+
+/* 想吃：抹茶绿 */
+.act-want {
+  border-color: rgba(124, 154, 109, 0.34);
+  background-color: rgba(124, 154, 109, 0.16);
+  color: var(--sage);
+}
+
+.act-want.is-on {
+  border-color: var(--sage);
+  background-color: var(--sage);
+  color: var(--card);
+}
+
+.act-want.is-on .act-icon,
+.act-want.is-on .act-label {
+  font-weight: 800;
+}
+
+.is-busy {
+  opacity: 0.6;
+}
+
+/* 头像列表：只显示头像，不显示昵称；点击才看昵称 */
+.act-avatars {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  min-height: 56rpx;
+  margin-top: 10rpx;
+}
+
+.act-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48rpx;
+  height: 48rpx;
+  margin: 0 10rpx 6rpx 0;
+  border-radius: 50%;
+  background-color: var(--line);
+  color: var(--ink-soft);
+  font-size: 22rpx;
+}
+
+/* 头像加载失败 / 没有头像：纯 CSS 圆形占位，不裂图 */
+.act-avatar-fallback {
+  background-color: rgba(138, 123, 109, 0.20);
+}
+
+.act-more {
+  margin: 0 10rpx 6rpx 0;
+  color: var(--ink-soft);
+  font-size: 22rpx;
+}
+
+.act-empty {
+  color: var(--ink-soft);
+  font-size: 21rpx;
+  letter-spacing: 1rpx;
+  opacity: 0.7;
+}
+
+/* 昵称提示：淡入后 2 秒由 JS 清空（高度固定，出现时不顶动布局） */
+.act-tip {
+  height: 30rpx;
+  color: var(--ink);
+  font-size: 21rpx;
+  letter-spacing: 1rpx;
+  opacity: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  transition: opacity 220ms ease;
+}
+
+.act-tip.is-show {
+  opacity: 1;
+}
+
+/* 下排整行：点这道菜 */
+.order-btn {
+  margin-top: 14rpx;
+  padding: 22rpx 40rpx;
 }
 
 /* 点菜中 / 已点：降饱和，配合 hover-class 关闭避免误以为可点 */
@@ -128,6 +455,305 @@
   background-color: var(--accent-soft);
   color: var(--ink-soft);
   box-shadow: none;
+}
+
+/* 没有进行中的点菜单：置灰 + 文案降级，点击只 toast */
+.order-btn-disabled {
+  background-color: var(--line);
+  color: var(--ink-soft);
+  box-shadow: none;
+}
+
+/* ---------- 浮层（参与者历史 / 改菜） ---------- */
+.sheet-mask {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 30;
+  display: flex;
+  align-items: flex-end;
+  background-color: rgba(59, 48, 42, 0.42);
+}
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: 100%;
+  max-height: 74vh;
+  padding: 24rpx 28rpx;
+  padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
+  border-top: 2rpx dashed var(--line);
+  border-radius: var(--radius) var(--radius) 0 0;
+  background-color: var(--card);
+  box-shadow: var(--shadow);
+}
+
+.sheet-tall {
+  max-height: 86vh;
+}
+
+.sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16rpx;
+}
+
+.sheet-title {
+  color: var(--ink);
+  font-size: 30rpx;
+  font-weight: 600;
+  letter-spacing: 2rpx;
+}
+
+.sheet-close {
+  padding: 0 12rpx;
+  color: var(--ink-soft);
+  font-size: 36rpx;
+  line-height: 1;
+}
+
+.sheet-body {
+  max-height: 56vh;
+}
+
+/* 改菜表单一定比一屏长：给定高，保证 scroll-view 真的能滚动 */
+.sheet-tall .sheet-body {
+  height: 64vh;
+}
+
+.sheet-hint {
+  padding: 30rpx 0;
+  color: var(--ink-soft);
+  font-size: 25rpx;
+  letter-spacing: 1rpx;
+  text-align: center;
+}
+
+.sheet-foot {
+  display: flex;
+  margin-top: 20rpx;
+}
+
+.sheet-btn {
+  flex: 1;
+  padding: 22rpx 0;
+  border-radius: var(--radius);
+  font-size: 28rpx;
+  font-weight: 600;
+  letter-spacing: 2rpx;
+  text-align: center;
+  transition: transform 160ms ease;
+}
+
+.sheet-btn + .sheet-btn {
+  margin-left: 16rpx;
+}
+
+.sheet-btn-ghost {
+  border: 2rpx dashed var(--accent-soft);
+  color: var(--accent);
+}
+
+.sheet-btn-main {
+  background-color: var(--accent);
+  box-shadow: var(--shadow);
+  color: var(--card);
+}
+
+.sheet-btn.is-disabled {
+  background-color: var(--line);
+  box-shadow: none;
+  color: var(--ink-soft);
+}
+
+/* ---------- 修改记录条目 ---------- */
+.history-item {
+  margin-bottom: 16rpx;
+  padding: 18rpx 20rpx;
+  border-left: 6rpx solid var(--accent-soft);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background-color: rgba(138, 123, 109, 0.07);
+}
+
+.history-head {
+  display: flex;
+  align-items: center;
+}
+
+.history-avatar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 50%;
+  background-color: var(--line);
+  color: var(--ink-soft);
+  font-size: 22rpx;
+}
+
+.history-avatar-fallback {
+  background-color: rgba(138, 123, 109, 0.20);
+}
+
+.history-person {
+  flex: 1;
+  min-width: 0;
+  margin-left: 14rpx;
+}
+
+.history-name {
+  color: var(--ink);
+  font-size: 26rpx;
+  font-weight: 600;
+  letter-spacing: 1rpx;
+}
+
+.history-time {
+  color: var(--ink-soft);
+  font-size: 21rpx;
+  letter-spacing: 1rpx;
+}
+
+.history-status {
+  flex: none;
+  padding: 4rpx 16rpx;
+  border-radius: 999rpx;
+  font-size: 21rpx;
+  letter-spacing: 1rpx;
+}
+
+.status-pending {
+  background-color: rgba(232, 180, 74, 0.22);
+  color: var(--ink-soft);
+}
+
+.status-approved {
+  background-color: rgba(124, 154, 109, 0.22);
+  color: var(--sage);
+}
+
+.status-rejected {
+  background-color: rgba(138, 123, 109, 0.18);
+  color: var(--ink-soft);
+}
+
+.history-line {
+  margin-top: 8rpx;
+  color: var(--ink-soft);
+  font-size: 23rpx;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+/* ---------- 改菜表单 ---------- */
+.form-row {
+  margin-bottom: 20rpx;
+}
+
+.form-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10rpx;
+}
+
+.form-label {
+  color: var(--ink);
+  font-size: 26rpx;
+  font-weight: 600;
+  letter-spacing: 2rpx;
+}
+
+.form-counter {
+  color: var(--ink-soft);
+  font-size: 21rpx;
+}
+
+.form-counter-over {
+  color: var(--accent);
+}
+
+.form-input,
+.form-textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 16rpx 20rpx;
+  border: 2rpx dashed var(--line);
+  border-radius: var(--radius);
+  background-color: rgba(138, 123, 109, 0.06);
+  color: var(--ink);
+  font-size: 27rpx;
+  line-height: 1.6;
+}
+
+.form-textarea {
+  min-height: 120rpx;
+}
+
+.ph {
+  color: var(--ink-soft);
+  opacity: 0.7;
+}
+
+.pill-input-row {
+  display: flex;
+  align-items: center;
+}
+
+.pill-input {
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 14rpx 20rpx;
+  border: 2rpx dashed var(--line);
+  border-radius: var(--radius);
+  background-color: rgba(138, 123, 109, 0.06);
+  color: var(--ink);
+  font-size: 26rpx;
+}
+
+.pill-add {
+  flex: none;
+  width: 64rpx;
+  height: 64rpx;
+  margin-left: 14rpx;
+  border: 2rpx dashed var(--accent-soft);
+  border-radius: 50%;
+  color: var(--accent);
+  font-size: 30rpx;
+  line-height: 60rpx;
+  text-align: center;
+  transition: transform 160ms ease;
+}
+
+/* 做法多选：白名单胶囊，选中填色 */
+.method-wrap {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.method-chip {
+  margin: 0 14rpx 14rpx 0;
+  padding: 8rpx 22rpx;
+  border: 2rpx dashed var(--line);
+  border-radius: 999rpx;
+  color: var(--ink-soft);
+  font-size: 24rpx;
+  letter-spacing: 1rpx;
+  transition: transform 160ms ease;
+}
+
+.method-chip.is-on {
+  border-color: var(--accent);
+  background-color: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
 }
 
 /* ---------- 加载骨架 ---------- */

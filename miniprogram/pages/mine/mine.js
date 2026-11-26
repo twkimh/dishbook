@@ -398,18 +398,29 @@ Page({
     );
   },
 
-  // 角标只要数量：pageSize 1 拿 total
+  // 角标要的是「待审核」总量：新菜提交 + 修改提案，两类都要算进去。
+  // 各自 pageSize 1 只取 total，两个请求并发发，任一失败按 0 计。
   fetchPendingCount: function () {
     var self = this;
-    return api.dishReviewList({ page: 1, pageSize: 1 }).then(
-      function onSuccess(res) {
-        var total = Number(res && res.total) || 0;
-        self.setData({ pendingCount: total, pendingText: format.formatCount(total) });
-      },
-      function onFail(err) {
-        console.error('[mine] 待审核数量加载失败', err);
-      }
-    );
+    function totalOf(task) {
+      return task.then(
+        function onSuccess(res) {
+          return Number(res && res.total) || 0;
+        },
+        function onFail(err) {
+          console.error('[mine] 待审核数量加载失败', err);
+          return 0;
+        }
+      );
+    }
+    return Promise.all([
+      totalOf(api.dishReviewList({ page: 1, pageSize: 1 })),
+      totalOf(api.dishEditList({ page: 1, pageSize: 1 }))
+    ]).then(function (totals) {
+      var total = (totals[0] || 0) + (totals[1] || 0);
+      self.setData({ pendingCount: total, pendingText: format.formatCount(total) });
+      return total;
+    });
   },
 
   /**

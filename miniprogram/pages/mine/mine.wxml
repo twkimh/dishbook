@@ -121,4 +121,7 @@
   </block>
 
   <empty-state wx:elif="{{!loading}}" text="还没有提交过菜" hint="去「加菜」页把做过的菜记下来" />
+
+  <!-- 菜单球（悬浮入口，组件无 props，SPEC-v1.0.8） -->
+  <menu-ball />
 </view>

@@ -1,0 +1,78 @@
+/* 悬浮球：纯 CSS 碗 + 文字，无任何图片素材。
+ * 只允许 var(--x) 与 rgba()，不出现颜色字面量。
+ */
+
+.menu-ball {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 800;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100rpx;
+  height: 100rpx;
+  border-radius: 50%;
+  background-color: var(--accent);
+  color: var(--card);
+  box-shadow: 0 6rpx 18rpx rgba(90, 62, 40, 0.18);
+  /* 吸附动画：松手后位置变化走这条过渡 */
+  transition: all 0.2s;
+}
+
+/* 拖动中：跟手，不要过渡动画 */
+.ball-dragging {
+  transition: none;
+}
+
+/* 没有进行中的菜单：降饱和 */
+.ball-off {
+  background-color: var(--ink-soft);
+  box-shadow: 0 4rpx 14rpx rgba(90, 62, 40, 0.12);
+}
+
+/* 碗：一个下圆角的碗身 + 一道碗口横线 */
+.bowl {
+  position: relative;
+  box-sizing: border-box;
+  width: 40rpx;
+  height: 18rpx;
+  border: 3rpx solid currentColor;
+  border-top: none;
+  border-radius: 0 0 20rpx 20rpx;
+}
+
+.bowl::after {
+  content: '';
+  position: absolute;
+  left: -8rpx;
+  top: -9rpx;
+  width: 50rpx;
+  height: 3rpx;
+  border-radius: 2rpx;
+  background-color: currentColor;
+}
+
+.ball-text {
+  margin-top: 6rpx;
+  font-size: 22rpx;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: 1rpx;
+  white-space: nowrap;
+}
+
+/* 点菜中：右上角绿点 */
+.ball-dot {
+  position: absolute;
+  right: 2rpx;
+  top: 2rpx;
+  box-sizing: border-box;
+  width: 18rpx;
+  height: 18rpx;
+  border: 3rpx solid var(--card);
+  border-radius: 50%;
+  background-color: var(--sage);
+}

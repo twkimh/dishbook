@@ -6,7 +6,8 @@
     "pages/orders/orders",
     "pages/review/review",
     "pages/mine/mine",
-    "pages/crop/crop"
+    "pages/crop/crop",
+    "pages/menu/menu"
   ],
   "window": {
     "backgroundTextStyle": "dark",

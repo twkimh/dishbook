@@ -73,25 +73,82 @@
     <view class="field-hint">选完图可以挑个比例裁一下，多选时只问一次</view>
   </view>
 
-  <!-- 一句话说明 -->
+  <!-- 材料 -->
+  <view class="field paper tilt-r">
+    <view class="field-head">
+      <text class="label">材料</text>
+      <text class="counter">{{ingredients.length}}/{{ingredientCountMax}}</text>
+    </view>
+    <view wx:if="{{ingredients.length}}" class="pills">
+      <view wx:for="{{ingredients}}" wx:key="*this" class="pill">
+        <text class="pill-text">{{item}}</text>
+        <text class="pill-x" data-index="{{index}}" catchtap="onRemoveIngredient">×</text>
+      </view>
+    </view>
+    <view class="tag-row">
+      <input
+        class="tag-input"
+        value="{{ingredientInput}}"
+        maxlength="{{ingredientLenMax}}"
+        placeholder="比如 番茄、鸡蛋（选填）"
+        placeholder-class="ph"
+        confirm-type="done"
+        bindinput="onIngredientInput"
+        bindconfirm="onIngredientConfirm"
+      />
+      <view class="tag-add tap" hover-class="tap-shrink" hover-stay-time="60" bindtap="onAddIngredient">＋</view>
+    </view>
+    <view class="field-hint">最多 20 项，每项不超过 20 个字</view>
+  </view>
+
+  <!-- 调料 -->
   <view class="field paper tilt-l">
     <view class="field-head">
-      <text class="label">一句话说明</text>
-      <text class="counter {{storyLen > storyMax ? 'counter-over' : ''}}">{{storyLen}}/{{storyMax}}</text>
+      <text class="label">调料</text>
+      <text class="counter">{{seasonings.length}}/{{seasoningCountMax}}</text>
     </view>
-    <textarea
-      class="textarea"
-      value="{{story}}"
-      maxlength="{{storyMax}}"
-      placeholder="这道菜的来历，或者做法上的一句话"
-      placeholder-class="ph"
-      auto-height
-      bindinput="onStoryInput"
-    />
+    <view wx:if="{{seasonings.length}}" class="pills">
+      <view wx:for="{{seasonings}}" wx:key="*this" class="pill">
+        <text class="pill-text">{{item}}</text>
+        <text class="pill-x" data-index="{{index}}" catchtap="onRemoveSeasoning">×</text>
+      </view>
+    </view>
+    <view class="tag-row">
+      <input
+        class="tag-input"
+        value="{{seasoningInput}}"
+        maxlength="{{seasoningLenMax}}"
+        placeholder="比如 生抽、花椒（选填）"
+        placeholder-class="ph"
+        confirm-type="done"
+        bindinput="onSeasoningInput"
+        bindconfirm="onSeasoningConfirm"
+      />
+      <view class="tag-add tap" hover-class="tap-shrink" hover-stay-time="60" bindtap="onAddSeasoning">＋</view>
+    </view>
+    <view class="field-hint">最多 20 项，每项不超过 20 个字</view>
+  </view>
+
+  <!-- 烹饪方式（白名单多选） -->
+  <view class="field paper tilt-r">
+    <view class="field-head">
+      <text class="label">烹饪方式</text>
+      <text class="counter">已选 {{methods.length}} 项</text>
+    </view>
+    <view wx:if="{{methods.length}}" class="pills">
+      <view wx:for="{{methods}}" wx:key="*this" class="pill">
+        <text class="pill-text">{{item}}</text>
+        <text class="pill-x" data-index="{{index}}" catchtap="onRemoveMethod">×</text>
+      </view>
+    </view>
+    <view class="method-open tap" hover-class="tap-shrink" hover-stay-time="60" bindtap="onOpenMethodPanel">
+      <text class="method-open-text">选择烹饪方式</text>
+    </view>
+    <view class="field-hint">炒、蒸、炖……可多选，不限数量</view>
   </view>
 
   <!-- 标签 -->
-  <view class="field paper tilt-r">
+  <view class="field paper tilt-l">
     <view class="field-head">
       <text class="label">标签</text>
       <text class="counter">{{tags.length}}/{{tagCountMax}}</text>
@@ -107,7 +164,7 @@
         class="tag-input"
         value="{{tagInput}}"
         maxlength="{{tagLenMax}}"
-        placeholder="比如 家常、快手菜"
+        placeholder="比如 家常、快手菜（选填）"
         placeholder-class="ph"
         confirm-type="done"
         bindinput="onTagInput"
@@ -118,8 +175,25 @@
     <view class="field-hint">最多 5 个，每个不超过 8 个字</view>
   </view>
 
+  <!-- 想说的话（底层仍是 story 字段） -->
+  <view class="field paper tilt-l">
+    <view class="field-head">
+      <text class="label">想说的话</text>
+      <text class="counter {{storyLen > storyMax ? 'counter-over' : ''}}">{{storyLen}}/{{storyMax}}</text>
+    </view>
+    <textarea
+      class="textarea"
+      value="{{story}}"
+      maxlength="{{storyMax}}"
+      placeholder="想对这道菜说点什么（选填）"
+      placeholder-class="ph"
+      auto-height
+      bindinput="onStoryInput"
+    />
+  </view>
+
   <!-- 访客昵称 -->
-  <view wx:if="{{!isOwner}}" class="field paper tilt-l">
+  <view wx:if="{{!isOwner}}" class="field paper tilt-r">
     <view class="field-head">
       <text class="label">怎么称呼你</text>
       <text class="counter">可选</text>
@@ -148,4 +222,38 @@
     </view>
     <view class="submit-hint">{{isOwner ? '主人家提交后直接上架' : '访客提交后需要主人家审核通过才上架'}}</view>
   </view>
+
+  <!-- 烹饪方式选择浮层（页内，不是新页面）
+       遮罩与面板是兄弟节点，点面板不会冒泡到遮罩；
+       两者都必须挂在 .page 下：.paper 上有 transform，固定定位会被它当成参照物 -->
+  <view wx:if="{{methodPanel}}" class="method-mask" bindtap="onCloseMethodPanel"></view>
+  <view wx:if="{{methodPanel}}" class="method-sheet">
+    <view class="method-sheet-head">
+      <text class="method-sheet-title">选择烹饪方式</text>
+      <text class="method-sheet-sub">可多选 · 已选 {{methods.length}} 项</text>
+    </view>
+    <scroll-view class="method-scroll" scroll-y>
+      <view wx:for="{{methodGroups}}" wx:key="key" class="method-group">
+        <text class="method-group-label">{{item.label}}</text>
+        <view class="method-words">
+          <view
+            wx:for="{{item.words}}"
+            wx:for-item="word"
+            wx:key="name"
+            class="method-word tap {{word.selected ? 'is-on' : ''}}"
+            hover-class="tap-shrink"
+            hover-stay-time="60"
+            data-name="{{word.name}}"
+            bindtap="onToggleMethod"
+          >{{word.name}}</view>
+        </view>
+      </view>
+    </scroll-view>
+    <view class="method-done sketch-btn tap" hover-class="tap-shrink" hover-stay-time="60" bindtap="onCloseMethodPanel">
+      <text>完成</text>
+    </view>
+  </view>
+
+  <!-- 菜单球（悬浮入口，组件无 props，SPEC-v1.0.8） -->
+  <menu-ball />
 </view>

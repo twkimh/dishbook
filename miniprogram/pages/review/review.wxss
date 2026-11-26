@@ -10,6 +10,64 @@
   margin-bottom: 20rpx;
 }
 
+/* ---------- 分类切换 ---------- */
+.mode-bar {
+  display: flex;
+  margin-bottom: 24rpx;
+}
+
+.mode-chip {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  margin-right: 16rpx;
+  padding: 18rpx 20rpx;
+  border: 2rpx dashed var(--line);
+  border-radius: 999rpx;
+  background-color: rgba(255, 253, 248, 0.55);
+}
+
+.mode-chip:last-child {
+  margin-right: 0;
+}
+
+/* 选中态：暖橙虚线 + 浅橙底，不用系统高亮 */
+.mode-chip.is-on {
+  border-color: var(--accent);
+  background-color: var(--accent-soft);
+}
+
+.mode-text {
+  color: var(--ink-soft);
+  font-size: 26rpx;
+  letter-spacing: 2rpx;
+}
+
+.mode-chip.is-on .mode-text {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.mode-num {
+  min-width: 34rpx;
+  margin-left: 10rpx;
+  padding: 0 10rpx;
+  border-radius: 999rpx;
+  background-color: rgba(90, 62, 40, 0.10);
+  color: var(--ink-soft);
+  font-size: 20rpx;
+  font-weight: 700;
+  line-height: 34rpx;
+  text-align: center;
+}
+
+.mode-chip.is-on .mode-num {
+  background-color: var(--accent);
+  color: var(--card);
+}
+
 /* ---------- 计数 ---------- */
 .count-bar {
   display: flex;
@@ -135,6 +193,74 @@
   display: flex;
   flex-wrap: wrap;
   margin-top: 16rpx;
+}
+
+/* ---------- 修改提案 ---------- */
+.proposal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.proposal-name {
+  flex: 0 1 auto;
+  min-width: 0;
+  color: var(--ink);
+  font-size: 32rpx;
+  font-weight: 700;
+  letter-spacing: 2rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 「修改」小标签：芥末黄描边，和「新菜」区分开 */
+.proposal-badge {
+  flex: 0 0 auto;
+  margin-left: 16rpx;
+  padding: 2rpx 16rpx;
+  border: 2rpx solid var(--mustard);
+  border-radius: 999rpx;
+  color: var(--ink);
+  font-size: 20rpx;
+  letter-spacing: 1rpx;
+}
+
+/* 摘要：四行小字，标签定宽，值换行不撑破卡片 */
+.summary {
+  margin-top: 16rpx;
+  padding: 16rpx 18rpx;
+  border-left: 4rpx solid var(--accent-soft);
+  border-radius: 12rpx;
+  background-color: rgba(248, 211, 188, 0.22);
+}
+
+.summary-row {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 8rpx;
+}
+
+.summary-row:last-child {
+  margin-bottom: 0;
+}
+
+.summary-label {
+  flex: 0 0 64rpx;
+  margin-right: 12rpx;
+  color: var(--ink-soft);
+  font-size: 22rpx;
+  line-height: 1.5;
+  letter-spacing: 1rpx;
+}
+
+.summary-value {
+  flex: 1;
+  min-width: 0;
+  color: var(--ink);
+  font-size: 22rpx;
+  line-height: 1.5;
+  word-break: break-all;
 }
 
 /* ---------- 操作 ---------- */

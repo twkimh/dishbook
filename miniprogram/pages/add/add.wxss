@@ -267,6 +267,118 @@
   text-align: center;
 }
 
+/* ---------- 烹饪方式 ---------- */
+.method-open {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 76rpx;
+  border: 3rpx dashed var(--line);
+  border-radius: 20rpx;
+  background-color: rgba(234, 223, 203, 0.28);
+}
+
+.method-open-text {
+  color: var(--accent);
+  font-size: 26rpx;
+  letter-spacing: 1rpx;
+}
+
+/* 页内浮层：遮罩 + 底部弹出面板（z-index 900 与列表页引导浮层同层，tabBar 是 100） */
+.method-mask {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 900;
+  background-color: rgba(59, 48, 42, 0.45);
+}
+
+.method-sheet {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 901;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  max-height: 84vh;
+  padding: 28rpx 28rpx 32rpx;
+  border-top-left-radius: var(--radius);
+  border-top-right-radius: var(--radius);
+  background-color: var(--card);
+  box-shadow: var(--shadow);
+}
+
+.method-sheet-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-bottom: 18rpx;
+  border-bottom: 2rpx dashed var(--line);
+}
+
+.method-sheet-title {
+  color: var(--ink);
+  font-size: 30rpx;
+  font-weight: 700;
+  letter-spacing: 2rpx;
+}
+
+.method-sheet-sub {
+  color: var(--ink-soft);
+  font-size: 22rpx;
+  letter-spacing: 1rpx;
+}
+
+.method-scroll {
+  height: 52vh;
+  margin-top: 8rpx;
+}
+
+.method-group {
+  margin-top: 20rpx;
+}
+
+.method-group-label {
+  color: var(--ink-soft);
+  font-size: 22rpx;
+  letter-spacing: 3rpx;
+}
+
+.method-words {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 12rpx;
+}
+
+.method-word {
+  margin: 0 14rpx 14rpx 0;
+  padding: 10rpx 26rpx;
+  border: 2rpx dashed var(--line);
+  border-radius: 999rpx;
+  background-color: rgba(234, 223, 203, 0.28);
+  color: var(--ink);
+  font-size: 26rpx;
+  letter-spacing: 1rpx;
+}
+
+/* 已选：暖橙浅底 + 实线描边，和未选区分开 */
+.method-word.is-on {
+  border: 2rpx solid var(--accent);
+  background-color: var(--accent-soft);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.method-done {
+  margin-top: 20rpx;
+  padding: 20rpx 40rpx;
+  font-size: 28rpx;
+}
+
 /* ---------- 提交 ---------- */
 .submit-bar {
   margin-top: 44rpx;
