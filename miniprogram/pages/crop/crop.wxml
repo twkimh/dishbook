@@ -1,0 +1,81 @@
+<view class="crop-page">
+  <!-- 顶栏：左取消（兼作返回） / 中标题 / 右完成 -->
+  <view class="crop-topbar">
+    <view class="topbar-btn topbar-cancel" hover-class="tap-shrink" hover-stay-time="60" bindtap="onCancelTap">
+      <text class="cancel-arrow">‹</text>
+      <text>取消</text>
+    </view>
+    <view class="topbar-title">裁剪</view>
+    <view class="topbar-btn topbar-done" hover-class="tap-shrink" hover-stay-time="60" bindtap="onConfirmTap">完成</view>
+  </view>
+
+  <!-- 舞台：单指拖动 / 双指捏合都在这一层接手势 -->
+  <view
+    id="cropStage"
+    class="stage"
+    bindtouchstart="onStageTouchStart"
+    bindtouchmove="onStageTouchMove"
+    bindtouchend="onStageTouchEnd"
+    bindtouchcancel="onStageTouchEnd"
+  >
+    <image
+      wx:if="{{src}}"
+      class="stage-img"
+      src="{{src}}"
+      mode="scaleToFill"
+      style="{{imgStyle}}"
+    />
+
+    <!-- 框外压暗：上 / 下 / 左 / 右四块 -->
+    <view class="mask" style="{{maskTop}}"></view>
+    <view class="mask" style="{{maskBottom}}"></view>
+    <view class="mask" style="{{maskLeft}}"></view>
+    <view class="mask" style="{{maskRight}}"></view>
+
+    <!-- 裁剪框 -->
+    <view class="crop-box" style="{{boxStyle}}">
+      <!-- 四角 L 形标记 -->
+      <view class="corner corner-tl"></view>
+      <view class="corner corner-tr"></view>
+      <view class="corner corner-bl"></view>
+      <view class="corner corner-br"></view>
+
+      <!-- 自由比例才有拖动柄；固定比例时框锁定，只能拖/缩图片 -->
+      <block wx:if="{{freeMode}}">
+        <view class="handle handle-nw" data-h="nw" catchtouchstart="onHandleStart" catchtouchmove="onHandleMove" catchtouchend="onHandleEnd" catchtouchcancel="onHandleEnd"></view>
+        <view class="handle handle-ne" data-h="ne" catchtouchstart="onHandleStart" catchtouchmove="onHandleMove" catchtouchend="onHandleEnd" catchtouchcancel="onHandleEnd"></view>
+        <view class="handle handle-sw" data-h="sw" catchtouchstart="onHandleStart" catchtouchmove="onHandleMove" catchtouchend="onHandleEnd" catchtouchcancel="onHandleEnd"></view>
+        <view class="handle handle-se" data-h="se" catchtouchstart="onHandleStart" catchtouchmove="onHandleMove" catchtouchend="onHandleEnd" catchtouchcancel="onHandleEnd"></view>
+        <view class="handle handle-n" data-h="n" catchtouchstart="onHandleStart" catchtouchmove="onHandleMove" catchtouchend="onHandleEnd" catchtouchcancel="onHandleEnd"></view>
+        <view class="handle handle-s" data-h="s" catchtouchstart="onHandleStart" catchtouchmove="onHandleMove" catchtouchend="onHandleEnd" catchtouchcancel="onHandleEnd"></view>
+        <view class="handle handle-w" data-h="w" catchtouchstart="onHandleStart" catchtouchmove="onHandleMove" catchtouchend="onHandleEnd" catchtouchcancel="onHandleEnd"></view>
+        <view class="handle handle-e" data-h="e" catchtouchstart="onHandleStart" catchtouchmove="onHandleMove" catchtouchend="onHandleEnd" catchtouchcancel="onHandleEnd"></view>
+      </block>
+    </view>
+
+    <view wx:if="{{!ready}}" class="stage-loading">
+      <text>图片准备中…</text>
+    </view>
+  </view>
+
+  <view class="stage-hint">
+    <text>{{freeMode ? '拖动四角或边改变裁剪范围，拖图片调整取景' : '框已按比例锁定，拖动或捏合调整取景'}}</text>
+    <text class="hint-zoom">{{zoomText}}</text>
+  </view>
+
+  <!-- 比例切换 -->
+  <view class="ratio-bar">
+    <view
+      wx:for="{{ratios}}"
+      wx:key="key"
+      class="ratio-chip {{item.key === ratio ? 'ratio-chip-on' : ''}}"
+      data-key="{{item.key}}"
+      hover-class="tap-shrink"
+      hover-stay-time="60"
+      bindtap="onRatioTap"
+    >{{item.label}}</view>
+  </view>
+
+  <!-- 离屏 canvas：不能用 display:none，否则可能取不到节点 -->
+  <canvas type="2d" id="cropCanvas" class="crop-canvas"></canvas>
+</view>
