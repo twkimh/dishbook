@@ -137,6 +137,134 @@ function chooseMedia(count) {
   });
 }
 
+/* ---------- 二次构图（选图后、上传前裁剪） ---------- */
+
+// 比例表与 CROP_SCALES 一一对应；最后一项 '' 表示不裁剪
+var CROP_OPTIONS = ['1:1 方形（推荐）', '4:3 横图', '3:4 竖图', '16:9 宽幅', '不裁剪，用原图'];
+var CROP_SCALES = ['1:1', '4:3', '3:4', '16:9', ''];
+
+// 低版本基础库（< 2.26.0）没有这个接口，直接跳过裁剪、用原图上传
+function canCropImage() {
+  return typeof wx.cropImage === 'function' && typeof wx.canIUse === 'function' && wx.canIUse('cropImage');
+}
+
+/**
+ * 问一次裁剪比例（本次选中的图共用这一个选择）。
+ * @returns {Promise<string>} 合法的 cropScale；'' 表示不裁剪（用户选了「不裁剪」或直接取消）
+ */
+function askCropScale() {
+  return new Promise(function (resolve) {
+    wx.showActionSheet({
+      itemList: CROP_OPTIONS,
+      success: function (res) {
+        var tapIndex = res && typeof res.tapIndex === 'number' ? res.tapIndex : -1;
+        var scale = tapIndex >= 0 && tapIndex < CROP_SCALES.length ? CROP_SCALES[tapIndex] : '';
+        resolve(scale || '');
+      },
+      fail: function (err) {
+        var message = (err && err.errMsg) || '';
+        // 用户主动取消等同「不裁剪」；其它原因也不阻断选图，记一笔就够了
+        if (message.indexOf('cancel') < 0) {
+          console.warn('[add] 打开裁剪比例选择失败，改用原图', message || err);
+        }
+        resolve('');
+      }
+    });
+  });
+}
+
+/**
+ * 裁剪单张图。任何异常（接口缺失 / 用户取消 / 裁剪失败 / 没返回路径）都降级成原图。
+ * 注意裁剪接口只支持 success/fail 回调，没有 Promise 风格。
+ * @param {string} filePath 本地临时路径
+ * @param {string} cropScale 合法比例，'' 表示不裁剪
+ * @returns {Promise<string>} 裁剪后的临时路径，或原路径
+ */
+function cropOne(filePath, cropScale) {
+  return new Promise(function (resolve) {
+    if (!filePath || !cropScale || !canCropImage()) {
+      resolve(filePath);
+      return;
+    }
+    var settled = false;
+    // 无论成功、失败还是同步抛错，loading 都要关掉，且只关一次
+    function finish(path) {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      wx.hideLoading();
+      resolve(path);
+    }
+    wx.showLoading({ title: '正在裁剪…', mask: true });
+    try {
+      wx.cropImage({
+        src: filePath,
+        cropScale: cropScale,
+        success: function (res) {
+          var cropped = res && res.tempFilePath;
+          if (!cropped) {
+            console.warn('[add] 裁剪没有返回 tempFilePath，改用原图');
+            finish(filePath);
+            return;
+          }
+          finish(cropped);
+        },
+        fail: function (err) {
+          console.warn('[add] 裁剪失败，改用原图', (err && err.errMsg) || err);
+          finish(filePath);
+        }
+      });
+    } catch (err) {
+      console.warn('[add] 调用裁剪接口抛错，改用原图', err);
+      finish(filePath);
+    }
+  });
+}
+
+/**
+ * 串行裁剪一批图（微信不允许同时弹多个弹窗，也不宜并发调裁剪）。
+ * @returns {Promise<string[]>} 与输入等长、同序的路径数组
+ */
+function cropBatch(paths, cropScale) {
+  var results = [];
+  var chain = Promise.resolve();
+  for (var i = 0; i < paths.length; i++) {
+    (function (index) {
+      chain = chain.then(function () {
+        return cropOne(paths[index], cropScale).then(function (path) {
+          results[index] = path;
+        });
+      });
+    })(i);
+  }
+  return chain.then(function () {
+    return results;
+  });
+}
+
+/**
+ * 选完图后的二次构图入口：一次 actionSheet 应用到本次选中的全部图片，再逐张串行裁剪。
+ * 封面与其他图片复用本函数，比例表首项 1:1 就是封面的首选。
+ * @param {string[]} paths chooseMedia 拿到的临时路径
+ * @returns {Promise<string[]>} 永远 resolve；低版本 / 取消 / 失败都给回原图
+ */
+function cropPicked(paths) {
+  var list = paths || [];
+  if (!list.length) {
+    return Promise.resolve([]);
+  }
+  if (!canCropImage()) {
+    return Promise.resolve(list.slice());
+  }
+  return askCropScale().then(function (cropScale) {
+    if (!cropScale) {
+      return list.slice();
+    }
+    return cropBatch(list, cropScale);
+  });
+}
+
 /**
  * 解析身份。app.onLaunch 的 login 是异步的，冷启动直达本页时 role 可能还没回来，
  * 此时用 openid 是否已就绪判断「还没登录」还是「确实是访客」。
@@ -265,7 +393,10 @@ Page({
         if (!paths.length) {
           return null;
         }
-        return self.uploadCover(paths[0]);
+        // 封面先问比例（首项 1:1 就是首选），裁完再交给原来的上传逻辑
+        return cropPicked(paths.slice(0, 1)).then(function onCropped(cropped) {
+          return self.uploadCover(cropped[0] || paths[0]);
+        });
       },
       function onChooseFail(err) {
         console.error('[add] 选封面失败', err);
@@ -317,26 +448,29 @@ Page({
         if (!paths.length) {
           return null;
         }
-        var base = self.data.images.slice();
-        var added = [];
-        for (var i = 0; i < paths.length; i++) {
-          added.push({
-            key: 'img-' + Date.now() + '-' + i,
-            id: '',
-            temp: paths[i],
-            uploading: true,
-            progress: 0
-          });
-        }
-        self.setData({ images: base.concat(added) });
-        self.syncBusy();
-        // 顺序上传：并发过多容易被云存储限流，也便于展示单张进度。
-        // 用 key 定位而不是下标——某张失败被移出数组时下标会整体前移。
-        var chain = Promise.resolve();
-        for (var j = 0; j < added.length; j++) {
-          chain = chain.then(self.makeImageUploader(added[j].key));
-        }
-        return chain;
+        // 一次 actionSheet 应用到本次选中的全部图片，多选也只问一次
+        return cropPicked(paths).then(function onCropped(croppedPaths) {
+          var base = self.data.images.slice();
+          var added = [];
+          for (var i = 0; i < croppedPaths.length; i++) {
+            added.push({
+              key: 'img-' + Date.now() + '-' + i,
+              id: '',
+              temp: croppedPaths[i],
+              uploading: true,
+              progress: 0
+            });
+          }
+          self.setData({ images: base.concat(added) });
+          self.syncBusy();
+          // 顺序上传：并发过多容易被云存储限流，也便于展示单张进度。
+          // 用 key 定位而不是下标——某张失败被移出数组时下标会整体前移。
+          var chain = Promise.resolve();
+          for (var j = 0; j < added.length; j++) {
+            chain = chain.then(self.makeImageUploader(added[j].key));
+          }
+          return chain;
+        });
       },
       function onChooseFail(err) {
         console.error('[add] 选图失败', err);

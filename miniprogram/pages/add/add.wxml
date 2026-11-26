@@ -70,6 +70,7 @@
         <text class="slot-plus">＋</text>
       </view>
     </view>
+    <view class="field-hint">选完图可以挑个比例裁一下，多选时只问一次</view>
   </view>
 
   <!-- 一句话说明 -->

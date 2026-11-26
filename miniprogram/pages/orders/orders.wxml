@@ -65,6 +65,7 @@
             />
             <view wx:else class="who-avatar who-avatar-blank">{{item.avatarText}}</view>
             <text class="who">{{item.nickname}}</text>
+            <text wx:if="{{item.userTag}}" class="user-tag">{{item.userTag}}</text>
             <text class="dot">·</text>
             <text class="time">{{item.timeText}}</text>
           </view>

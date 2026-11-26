@@ -10,6 +10,71 @@ var PAGE_SIZE = 10;
 var DEBOUNCE_MS = 300;
 var MAX_TAGS = 20;
 
+// 引导浮层的两个本地标记：档案（nickname/avatar）为空且没点过「稍后再说」才弹
+var GUIDE_SKIP_KEY = 'profileGuideSkipped';
+var MAX_NICKNAME = 20;
+
+function toast(title) {
+  wx.showToast({ title: title, icon: 'none', duration: 2000 });
+}
+
+function readStorage(key) {
+  try {
+    var value = wx.getStorageSync(key);
+    return typeof value === 'string' ? value : '';
+  } catch (err) {
+    console.error('[index] 读取缓存失败 ' + key, err);
+    return '';
+  }
+}
+
+function writeStorage(key, value) {
+  try {
+    wx.setStorageSync(key, value);
+  } catch (err) {
+    console.error('[index] 写入缓存失败 ' + key, err);
+  }
+}
+
+// 「稍后再说」存的是布尔值，不能套 readStorage 的字符串归一（会把 true 变成 '' ）
+function hasSkippedGuide() {
+  try {
+    return !!wx.getStorageSync(GUIDE_SKIP_KEY);
+  } catch (err) {
+    console.error('[index] 读取引导标记失败', err);
+    return false;
+  }
+}
+
+/**
+ * 头像上传到云存储换 fileID（与「我的」页同一套做法）。
+ * @param {string} filePath chooseAvatar 给的本地临时路径
+ * @param {string} cloudPath 云存储路径
+ * @returns {Promise<string>} fileID
+ */
+function uploadAvatar(filePath, cloudPath) {
+  return new Promise(function (resolve, reject) {
+    try {
+      wx.cloud.uploadFile({
+        cloudPath: cloudPath,
+        filePath: filePath,
+        success: function (res) {
+          if (res && res.fileID) {
+            resolve(res.fileID);
+            return;
+          }
+          reject(new Error('上传没有返回 fileID'));
+        },
+        fail: function (err) {
+          reject(err || new Error('头像上传失败'));
+        }
+      });
+    } catch (err) {
+      reject(err || new Error('头像上传异常'));
+    }
+  });
+}
+
 Page({
   data: {
     keyword: '',
@@ -25,7 +90,12 @@ Page({
     loadingMore: false,
     endReached: false,
     emptyText: '还没有菜品上架',
-    emptyHint: '等主人家端上第一道菜'
+    emptyHint: '等主人家端上第一道菜',
+    // 首次进入引导（可跳过）：guideAvatarUrl 存本地临时路径，点「保存」时才上传
+    guideVisible: false,
+    guideNickname: '',
+    guideAvatarUrl: '',
+    guideSaving: false
   },
 
   /* ---------- 生命周期 ---------- */
@@ -48,6 +118,8 @@ Page({
       this.getTabBar().setData({ selected: 0 });
     }
     this.navigating = false;
+    // 引导只在首页判断（别的页面不弹），且每次进入 App 最多判断一次
+    this.maybeShowProfileGuide();
     // 首次进入不重复请求；只有「离开过本页再回来」（如从添加页返回）才静默刷新
     if (this.loadedOnce && this.needRefresh) {
       this.needRefresh = false;
@@ -64,6 +136,124 @@ Page({
 
   onUnload: function () {
     this.clearSearchTimer();
+  },
+
+  /* ---------- 首次进入引导：补昵称 / 头像（可跳过） ---------- */
+
+  // 微信不允许「不给头像昵称就不给用」，所以这里永远可跳过；
+  // 只在首页 onShow 判断，且每次进入 App 只判断一次。
+  maybeShowProfileGuide: function () {
+    if (this.guideChecked) {
+      return;
+    }
+    this.guideChecked = true;
+    var nickname = readStorage('nickname');
+    var avatar = readStorage('avatar');
+    var skipped = hasSkippedGuide();
+    if (!nickname && !avatar && !skipped) {
+      this.setData({ guideVisible: true });
+    }
+  },
+
+  // 遮罩只吞掉点击（避免误触到底下的卡片），本身不关闭浮层
+  onGuideMaskTap: function () {
+    return;
+  },
+
+  onGuideChooseAvatar: function (event) {
+    var tempPath = (event && event.detail && event.detail.avatarUrl) || '';
+    if (!tempPath) {
+      return;
+    }
+    // 先本地回显；点「保存」时才上传，选完又跳走不会留下垃圾文件
+    this.setData({ guideAvatarUrl: tempPath });
+  },
+
+  // 临时路径失效就落回纯 CSS 的「点头像」占位，不留裂图
+  onGuideAvatarError: function () {
+    this.setData({ guideAvatarUrl: '' });
+  },
+
+  onGuideNicknameInput: function (event) {
+    var value = (event && event.detail && event.detail.value) || '';
+    this.setData({ guideNickname: value });
+  },
+
+  onGuideSave: function () {
+    var self = this;
+    if (this.data.guideSaving) {
+      return;
+    }
+    var nickname = (this.data.guideNickname || '').trim();
+    if (nickname.length > MAX_NICKNAME) {
+      nickname = nickname.slice(0, MAX_NICKNAME);
+    }
+    var tempPath = this.data.guideAvatarUrl || '';
+    // 昵称头像都空：不上传、不落库，原地提示
+    if (!nickname && !tempPath) {
+      toast('至少填个称呼');
+      return;
+    }
+
+    var app = getApp();
+    var openid = (app && app.globalData && app.globalData.openid) || '';
+    var cloudPath = 'avatars/' + (openid || 'anon') + '-' + Date.now() + '.jpg';
+    // 没选头像就不上传，avatar 传空串（后端允许只存昵称）
+    var uploading = tempPath ? uploadAvatar(tempPath, cloudPath) : Promise.resolve('');
+
+    this.setData({ guideSaving: true });
+    uploading.then(
+      function onUploaded(fileID) {
+        var avatar = fileID || '';
+        var saving;
+        try {
+          saving = api.profileSave({ nickname: nickname, avatar: avatar });
+        } catch (err) {
+          console.error('[index] 引导资料保存异常', err);
+          self.setData({ guideSaving: false });
+          toast('保存失败，请重试');
+          return;
+        }
+        return saving.then(
+          function onSaved() {
+            // 云端与本地缓存一起写，下次启动就不会再弹
+            writeStorage('nickname', nickname);
+            writeStorage('avatar', avatar);
+            self.setData({
+              guideVisible: false,
+              guideSaving: false,
+              guideNickname: '',
+              guideAvatarUrl: ''
+            });
+            toast(nickname ? '记住你啦' : '头像存好啦');
+          },
+          function onSaveFail(err) {
+            // api.js 已经 toast 过；浮层留在原地，不假装成功
+            console.error('[index] 引导资料保存失败', err);
+            self.setData({ guideSaving: false });
+          }
+        );
+      },
+      function onUploadFail(err) {
+        console.error('[index] 引导头像上传失败', err);
+        self.setData({ guideSaving: false });
+        toast('头像没存上，请重试');
+      }
+    );
+  },
+
+  onGuideSkip: function () {
+    if (this.data.guideSaving) {
+      return;
+    }
+    // 记一笔，以后不再弹
+    writeStorage(GUIDE_SKIP_KEY, true);
+    this.setData({
+      guideVisible: false,
+      guideSaving: false,
+      guideNickname: '',
+      guideAvatarUrl: ''
+    });
   },
 
   /* ---------- 数据加载 ---------- */

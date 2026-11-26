@@ -64,6 +64,9 @@ function decorate(raw) {
   var item = raw || {};
   var submitter = item.submitter || {};
   var nickname = submitter.nickname || '一位朋友';
+  // 用户编号：openid 由微信服务端签发，客户端伪造不了，取后 6 位即可区分同名的人。
+  // 纯前端派生，不进库；取不到 openid 时留空串，wxml 用 wx:if 不渲染。
+  var openid = typeof submitter.openid === 'string' ? submitter.openid : '';
   return {
     id: item._id || item.id || '',
     name: item.name || '未命名',
@@ -71,6 +74,7 @@ function decorate(raw) {
     story: item.story || '',
     tags: item.tags || [],
     nickname: nickname,
+    userTag: openid ? '#' + openid.slice(-6) : '',
     // 提交人头像：后端返回的已是可直接显示的 https 临时链接
     avatar: submitter.avatar || '',
     avatarText: nickname.charAt(0),

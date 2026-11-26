@@ -92,4 +92,52 @@
     <view wx:if="{{loadingMore}}" class="foot-text">正在往下翻…</view>
     <view wx:elif="{{endReached}}" class="foot-text foot-end">到底啦</view>
   </view>
+
+  <!-- 首次进入引导：补头像昵称（可跳过）。遮罩不响应关闭，只有两个按钮能关 -->
+  <view wx:if="{{guideVisible}}" class="guide-mask" catchtap="onGuideMaskTap">
+    <view class="guide-card paper tilt-l">
+      <view class="tape tape-top"></view>
+      <view class="guide-title">让主人家认出你</view>
+      <view class="guide-sub">留个称呼、选个头像，点菜的时候主人家就知道是谁啦</view>
+      <button
+        class="guide-avatar tap"
+        hover-class="tap-shrink"
+        hover-stay-time="60"
+        open-type="chooseAvatar"
+        bindchooseavatar="onGuideChooseAvatar"
+      >
+        <image
+          wx:if="{{guideAvatarUrl}}"
+          class="guide-avatar-img"
+          src="{{guideAvatarUrl}}"
+          mode="aspectFill"
+          binderror="onGuideAvatarError"
+        />
+        <view wx:else class="guide-avatar-empty">点头像</view>
+      </button>
+      <input
+        type="nickname"
+        class="guide-nickname"
+        value="{{guideNickname}}"
+        maxlength="20"
+        placeholder="怎么称呼你"
+        placeholder-class="guide-ph"
+        bindinput="onGuideNicknameInput"
+      />
+      <view class="guide-actions">
+        <view
+          class="sketch-btn sketch-btn-ghost guide-btn"
+          hover-class="tap-shrink"
+          hover-stay-time="60"
+          bindtap="onGuideSkip"
+        >稍后再说</view>
+        <view
+          class="sketch-btn guide-btn guide-btn-main {{guideSaving ? 'is-busy' : ''}}"
+          hover-class="tap-shrink"
+          hover-stay-time="60"
+          bindtap="onGuideSave"
+        >{{guideSaving ? '保存中…' : '保存'}}</view>
+      </view>
+    </view>
+  </view>
 </view>

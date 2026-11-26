@@ -102,8 +102,22 @@
 }
 
 .who {
+  flex: 0 1 auto;
+  min-width: 0;
   color: var(--ink);
   font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 用户编号：openid 后 6 位，只做区分，不抢视觉 */
+.user-tag {
+  flex: 0 0 auto;
+  margin-left: 10rpx;
+  color: var(--ink-soft);
+  font-size: 20rpx;
+  letter-spacing: 1rpx;
 }
 
 .dot {
