@@ -70,6 +70,25 @@
       </view>
       <view class="entry-arrow">›</view>
     </view>
+    <view class="entry paper tilt-l tap" hover-class="tap-shrink" hover-stay-time="60" bindtap="goRecycle">
+      <view class="entry-main">
+        <view class="entry-title">回收站</view>
+        <view class="entry-sub">删掉的菜和点菜单，30 天内能找回</view>
+      </view>
+      <view class="entry-arrow">›</view>
+    </view>
+  </view>
+
+  <!-- 我的申请：只给非主人家看。主人家删菜是直接生效的，永远不会产生申请记录，
+       这个入口对他永远是空的，属于噪音。tilt 跟上面的身份卡（tilt-l）交替 -->
+  <view wx:if="{{!isOwner}}" class="entries">
+    <view class="entry paper tilt-r tap" hover-class="tap-shrink" hover-stay-time="60" bindtap="goMyDeletes">
+      <view class="entry-main">
+        <view class="entry-title">我的申请</view>
+        <view class="entry-sub">看看申请通过了没有</view>
+      </view>
+      <view class="entry-arrow">›</view>
+    </view>
   </view>
 
   <!-- 我的提交 -->
@@ -112,7 +131,19 @@
           <text class="row-name">{{item.name}}</text>
           <text class="status status-{{item.status}}">{{item.statusText}}</text>
         </view>
-        <view class="row-time">{{item.timeText}}</view>
+        <view class="row-foot">
+          <text class="row-time">{{item.timeText}}</text>
+          <!-- 删除：与自己传的菜同一套规则——主人家直接进回收站，其他人填理由等审核。
+               catchtap 阻止冒泡，否则会连带触发整行的 goDish -->
+          <view
+            class="row-del tap"
+            hover-class="tap-shrink"
+            hover-stay-time="60"
+            data-id="{{item.id}}"
+            data-name="{{item.name}}"
+            catchtap="onDeleteDish"
+          >删除</view>
+        </view>
       </view>
     </view>
 

@@ -1,0 +1,165 @@
+<view class="page recycle-page">
+  <view class="page-head">
+    <view class="page-title">回收站</view>
+    <view class="page-sub">删掉的菜和点菜单先在这儿待 30 天，想清楚再彻底删</view>
+  </view>
+
+  <!-- 分类切换 + 各分类数量 -->
+  <view class="mode-bar">
+    <view
+      class="mode-chip tap {{type === 'dish' ? 'is-on' : ''}}"
+      hover-class="tap-shrink"
+      hover-stay-time="60"
+      data-type="dish"
+      bindtap="switchType"
+    >
+      <text class="mode-text">菜品</text>
+      <text class="mode-num">{{dishCountText}}</text>
+    </view>
+    <view
+      class="mode-chip tap {{type === 'menu' ? 'is-on' : ''}}"
+      hover-class="tap-shrink"
+      hover-stay-time="60"
+      data-type="menu"
+      bindtap="switchType"
+    >
+      <text class="mode-text">点菜单</text>
+      <text class="mode-num">{{menuCountText}}</text>
+    </view>
+  </view>
+
+  <!-- 全选 / 清空本分类 -->
+  <view class="tool-bar">
+    <view
+      class="tool tap {{selectAll ? 'is-on' : ''}}"
+      hover-class="tap-shrink"
+      hover-stay-time="60"
+      bindtap="onToggleAll"
+    >{{selectAll ? '取消全选' : '全选'}}</view>
+    <view
+      class="tool tool-danger tap"
+      hover-class="tap-shrink"
+      hover-stay-time="60"
+      bindtap="onClearType"
+    >清空本分类</view>
+  </view>
+
+  <!-- 骨架 -->
+  <block wx:if="{{skeleton}}">
+    <view class="skel-card paper">
+      <view class="skeleton skeleton-line skeleton-cover"></view>
+      <view class="skeleton skeleton-line skeleton-title"></view>
+      <view class="skeleton skeleton-line skeleton-sub"></view>
+    </view>
+    <view class="skel-card paper tilt-r">
+      <view class="skeleton skeleton-line skeleton-cover"></view>
+      <view class="skeleton skeleton-line skeleton-title"></view>
+      <view class="skeleton skeleton-line skeleton-sub"></view>
+    </view>
+  </block>
+
+  <!-- 列表 -->
+  <block wx:elif="{{list.length}}">
+    <view
+      wx:for="{{list}}"
+      wx:key="id"
+      wx:for-index="index"
+      class="card paper {{index % 2 === 0 ? 'tilt-l' : 'tilt-r'}} {{item.selected ? 'is-picked' : ''}}"
+      data-index="{{index}}"
+      bindtap="onTapCard"
+    >
+      <!-- 自定义圆框复选框（不用原生 checkbox） -->
+      <view
+        class="pick tap"
+        hover-class="tap-shrink"
+        hover-stay-time="60"
+        data-index="{{index}}"
+        catchtap="onToggle"
+      >
+        <view wx:if="{{item.selected}}" class="pick-dot"></view>
+      </view>
+
+      <!-- 菜品卡片 -->
+      <block wx:if="{{type === 'dish'}}">
+        <view class="thumb">
+          <image wx:if="{{item.cover}}" class="thumb-img" src="{{item.cover}}" mode="aspectFill" lazy-load />
+          <view wx:else class="thumb-blank"><text class="thumb-mark">菜</text></view>
+        </view>
+        <view class="body">
+          <view class="body-top">
+            <text class="name">{{item.name}}</text>
+            <text wx:if="{{item.delisted}}" class="flag">已下架</text>
+          </view>
+          <view wx:if="{{item.reason}}" class="reason">理由：{{item.reason}}</view>
+          <view class="meta">
+            <text class="time">{{item.timeText}}</text>
+            <text class="left">{{item.daysText}}</text>
+          </view>
+        </view>
+      </block>
+
+      <!-- 点菜单卡片 -->
+      <block wx:else>
+        <view class="body body-menu">
+          <view class="body-top">
+            <text class="name">{{item.title}}</text>
+            <text class="flag flag-count">{{item.dishText}}</text>
+          </view>
+          <view class="meta-line">{{item.metaText}}</view>
+          <view class="meta">
+            <text class="time">{{item.timeText}}</text>
+            <text class="left">{{item.daysText}}</text>
+          </view>
+        </view>
+      </block>
+
+      <view class="card-foot">
+        <view
+          class="mini-btn tap"
+          hover-class="tap-shrink"
+          hover-stay-time="60"
+          data-id="{{item.id}}"
+          catchtap="onRestoreOne"
+        >恢复</view>
+        <view
+          class="mini-btn mini-btn-danger tap"
+          hover-class="tap-shrink"
+          hover-stay-time="60"
+          data-id="{{item.id}}"
+          catchtap="onPurgeOne"
+        >永久删除</view>
+      </view>
+    </view>
+
+    <view wx:if="{{visible < total}}" class="foot-hint">下面还有 {{total - visible}} 项</view>
+    <view wx:else class="foot-hint">没有更多了</view>
+  </block>
+
+  <!-- 空状态 -->
+  <empty-state wx:elif="{{!loading}}" text="回收站是空的" hint="删掉的菜和点菜单会先在这里放 30 天" />
+
+  <!-- 弱化入口：清空整个回收站 -->
+  <view
+    wx:if="{{dishCount + menuCount > 0}}"
+    class="wipe-all tap"
+    hover-class="tap-shrink"
+    hover-stay-time="60"
+    bindtap="onClearAll"
+  >清空整个回收站</view>
+
+  <!-- 多选操作栏：选中数 > 0 才出现（固定定位，不在 .paper 里） -->
+  <view wx:if="{{selectedCount > 0}}" class="action-bar">
+    <view
+      class="action-btn tap"
+      hover-class="tap-shrink"
+      hover-stay-time="60"
+      bindtap="onRestoreSelected"
+    >恢复选中 ({{selectedCount}})</view>
+    <view
+      class="action-btn action-btn-danger tap"
+      hover-class="tap-shrink"
+      hover-stay-time="60"
+      bindtap="onPurgeSelected"
+    >删除选中 ({{selectedCount}})</view>
+  </view>
+</view>

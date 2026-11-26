@@ -80,6 +80,17 @@
   letter-spacing: 1rpx;
 }
 
+/* 状态卡右上角的「修改」小字链接（§5.3 menu.update）：不抢「剩余时间」的注意力 */
+.status-edit {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 2rpx 4rpx;
+  color: var(--ink-soft);
+  font-size: 22rpx;
+  letter-spacing: 1rpx;
+  text-decoration: underline;
+}
+
 .status-empty {
   color: var(--ink);
   font-size: 32rpx;
@@ -258,6 +269,22 @@
 
 .confirm-bar {
   margin: 6rpx 0 26rpx;
+}
+
+/* 删除这一轮：位置在「确认这一轮」下方，虚线 + 次要文字色，明显弱一档 */
+.review-del-wrap {
+  margin: -10rpx 0 30rpx;
+  text-align: center;
+}
+
+.review-del {
+  display: inline-block;
+  padding: 10rpx 26rpx;
+  border: 2rpx dashed var(--line);
+  border-radius: 999rpx;
+  color: var(--ink-soft);
+  font-size: 22rpx;
+  letter-spacing: 1rpx;
 }
 
 /* ---------- 主人家控制区 ---------- */
@@ -800,6 +827,17 @@
   color: var(--ink-soft);
   font-size: 20rpx;
   letter-spacing: 1rpx;
+}
+
+/* 历史项右侧的删除入口：只是一个普通文字按钮，不用 emoji */
+.his-del {
+  flex: 0 0 auto;
+  margin-left: 14rpx;
+  padding: 4rpx 8rpx;
+  color: var(--ink-soft);
+  font-size: 22rpx;
+  letter-spacing: 1rpx;
+  text-decoration: underline;
 }
 
 .his-more {

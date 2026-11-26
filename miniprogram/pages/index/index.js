@@ -125,6 +125,8 @@ Page({
     keyword: '',
     activeTag: '',
     tags: [],
+    // 页内视图切换（v1.0.8 §5）：false=菜谱列表，true=已下架菜品列表
+    listedView: false,
     list: [],
     // 两列瀑布：按列表奇偶拆成左右两列，追加分页时已有卡片不重排
     leftColumn: [],
@@ -312,23 +314,42 @@ Page({
 
   /* ---------- 数据加载 ---------- */
 
+  // 当前视图的查询条件：下架视图固定看「已下架」，且不带关键字 / 标签
+  // （搜索框与标签条在下架视图里不渲染，条件留着会把列表静默过滤掉）
+  currentQuery: function () {
+    if (this.data.listedView) {
+      return { keyword: '', tag: '', listed: false };
+    }
+    return { keyword: this.data.keyword, tag: this.data.activeTag, listed: null };
+  },
+
+  // dish.list 的入参：只有下架视图才显式传 listed:false，菜谱视图沿用后端默认（已上架）
+  listParams: function (page) {
+    var query = this.currentQuery();
+    var params = {
+      keyword: query.keyword,
+      tag: query.tag,
+      page: page,
+      pageSize: PAGE_SIZE
+    };
+    if (query.listed === false) {
+      params.listed = false;
+    }
+    return params;
+  },
+
   // 拉第一页。skeleton 为 true 时展示首屏骨架。
   reload: function (options) {
     var self = this;
     var opts = options || {};
     var seq = ++this.seq;
     // 请求发出时的查询条件，空状态文案要按它判断（响应回来时 keyword 可能已被改写）
-    var query = { keyword: this.data.keyword, tag: this.data.activeTag };
+    var query = this.currentQuery();
     this.setData({
       firstLoading: !!opts.skeleton,
       loadingMore: false
     });
-    return api.dishList({
-      keyword: query.keyword,
-      tag: query.tag,
-      page: 1,
-      pageSize: PAGE_SIZE
-    }).then(function (result) {
+    return api.dishList(this.listParams(1)).then(function (result) {
       if (seq !== self.seq) {
         return;
       }
@@ -353,14 +374,9 @@ Page({
     }
     var seq = this.seq;
     var nextPage = this.data.page + 1;
-    var query = { keyword: this.data.keyword, tag: this.data.activeTag };
+    var query = this.currentQuery();
     this.setData({ loadingMore: true });
-    return api.dishList({
-      keyword: query.keyword,
-      tag: query.tag,
-      page: nextPage,
-      pageSize: PAGE_SIZE
-    }).then(function (result) {
+    return api.dishList(this.listParams(nextPage)).then(function (result) {
       if (seq !== self.seq) {
         return;
       }
@@ -390,11 +406,13 @@ Page({
     var columns = this.splitColumns(list);
     var hasMore = payload.hasMore !== false;
     var empty = this.buildEmpty(list.length === 0, query);
+    // 下架视图不往标签筛选条里塞标签：那条筛选只服务菜谱列表
+    var tags = query && query.listed === false ? this.data.tags : this.mergeTags(list);
     this.setData({
       list: list,
       leftColumn: columns.left,
       rightColumn: columns.right,
-      tags: this.mergeTags(list),
+      tags: tags,
       page: page,
       hasMore: hasMore,
       endReached: !hasMore && list.length > 0,
@@ -441,13 +459,43 @@ Page({
     return tags;
   },
 
-  // 空状态文案：区分「一道菜都没有」和「搜不到结果」
+  // 空状态文案：区分「一道菜都没有」「搜不到结果」「已下架的菜」（v1.0.8 §5）
   buildEmpty: function (isEmpty, query) {
     var q = query || {};
+    if (q.listed === false) {
+      return { text: '还没有下架的菜', hint: '下架的菜会收在这里，上架后回到菜谱' };
+    }
     if (isEmpty && (q.keyword || q.tag)) {
       return { text: '没找到这道菜', hint: '换个菜名，或者去掉标签再试试' };
     }
     return { text: '还没有菜品上架', hint: '等主人家端上第一道菜' };
+  },
+
+  /* ---------- 下架视图切换（v1.0.8 §5） ---------- */
+
+  // 页内切换，不新建页面：清空列表后按新视图重拉第一页（分页 / 下拉刷新 / 触底都复用整套逻辑）
+  onToggleListed: function () {
+    var next = !this.data.listedView;
+    this.clearSearchTimer();
+    this.clearOrderTimers();
+    this.setData({
+      listedView: next,
+      list: [],
+      leftColumn: [],
+      rightColumn: [],
+      page: 1,
+      hasMore: true,
+      endReached: false,
+      loadingMore: false
+    });
+    this.loadedOnce = true;
+    this.reload({ skeleton: true });
+  },
+
+  // 下架卡片是页面自己写的（不用 dish-card）：只负责点进详情
+  onDelistedTap: function (event) {
+    var id = (event && event.currentTarget ? event.currentTarget.dataset.id : '') || '';
+    return this.onCardTap({ detail: { id: id } });
   },
 
   /* ---------- 搜索（300ms 防抖） ---------- */

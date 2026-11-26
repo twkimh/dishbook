@@ -8,6 +8,8 @@ var api = require('../../utils/api.js');
 var format = require('../../utils/format.js');
 
 var PAGE_SIZE = 10;
+// 与后端 lib/validate.js 的 DELETE_REASON_MAX 保持一致
+var DELETE_REASON_MAX = 100;
 var STATUS_TEXT = {
   approved: '已上架',
   pending: '待审核',
@@ -155,6 +157,8 @@ Page({
     pendingText: '0',
     list: [],
     total: 0,
+    // 正在删除的那条 id：防连点，也用来给行加忙碌态
+    deletingId: '',
     page: 0,
     hasMore: true,
     loading: false,
@@ -509,6 +513,25 @@ Page({
     });
   },
 
+  goRecycle: function () {
+    wx.navigateTo({
+      url: '/pages/recycle/recycle',
+      fail: function (err) {
+        console.error('[mine] 打开回收站失败', err);
+      }
+    });
+  },
+
+  // 访客专有：创建者删菜要填理由进审核，结果不会通知他，所以留一个回看入口
+  goMyDeletes: function () {
+    wx.navigateTo({
+      url: '/pages/mydeletes/mydeletes',
+      fail: function (err) {
+        console.error('[mine] 打开删除申请失败', err);
+      }
+    });
+  },
+
   goDish: function (event) {
     var id = event.currentTarget.dataset.id;
     if (!id) {
@@ -520,5 +543,113 @@ Page({
         console.error('[mine] 打开菜品详情失败', err);
       }
     });
+  },
+
+  /* ---------- 删除自己传的菜（SPEC-v1.0.8 §5.2） ----------
+   * 「我的提交」里的菜按定义都是自己传的，所以规则只有两条：
+   *   主人家（含既是主人又是提交者）-> 二次确认后直接进回收站，不用理由
+   *   其他人                        -> 必须填理由，写一条待审提案，菜不动
+   * 理由用 wx.showModal 的 editable 拿，避免为了一个输入框再造一个浮层。
+   */
+
+  onDeleteDish: function (event) {
+    var self = this;
+    var dataset = (event && event.currentTarget && event.currentTarget.dataset) || {};
+    var id = typeof dataset.id === 'string' ? dataset.id : '';
+    if (!id || this.deletingId) {
+      return;
+    }
+    var name = typeof dataset.name === 'string' ? dataset.name : '';
+
+    var title = name ? '删除「' + name + '」' : '删除这道菜';
+
+    if (this.data.isOwner) {
+      wx.showModal({
+        title: title,
+        content: '删除后会在回收站保留 30 天，可以恢复',
+        confirmText: '删除',
+        cancelText: '再想想',
+        success: function (res) {
+          if (res && res.confirm) {
+            self.doDeleteDish(id, '');
+          }
+        },
+        fail: function (err) {
+          console.warn('[mine] 删除确认弹窗异常', err);
+        }
+      });
+      return;
+    }
+
+    // 非主人家：理由必填。editable 让用户就地输入，content 即输入内容。
+    wx.showModal({
+      title: title,
+      editable: true,
+      placeholderText: '写一句删除理由（主人家审核时会看到）',
+      confirmText: '提交申请',
+      cancelText: '取消',
+      success: function (res) {
+        if (!res || !res.confirm) {
+          return;
+        }
+        var reason = String(res.content || '').trim();
+        if (!reason) {
+          wx.showToast({ title: '写一句删除理由', icon: 'none' });
+          return;
+        }
+        if (reason.length > DELETE_REASON_MAX) {
+          wx.showToast({ title: '理由最多 ' + DELETE_REASON_MAX + ' 个字', icon: 'none' });
+          return;
+        }
+        self.doDeleteDish(id, reason);
+      },
+      fail: function (err) {
+        console.warn('[mine] 删除申请弹窗异常', err);
+      }
+    });
+  },
+
+  doDeleteDish: function (id, reason) {
+    var self = this;
+    this.deletingId = id;
+    this.setData({ deletingId: id });
+    api.dishRemove(id, reason).then(
+      function onSuccess(result) {
+        if (self.unloaded) {
+          return;
+        }
+        self.deletingId = '';
+        self.setData({ deletingId: '' });
+        var status = (result && result.status) || '';
+        if (status === 'pending') {
+          wx.showToast({ title: '删除申请已提交，等主人家审核', icon: 'none', duration: 2000 });
+          return; // 菜还在，列表不动
+        }
+        wx.showToast({ title: '已移入回收站', icon: 'none' });
+        self.removeFromList(id);
+      },
+      function onFail(err) {
+        // api.js 已 toast
+        console.error('[mine] 删除菜品失败', err);
+        if (self.unloaded) {
+          return;
+        }
+        self.deletingId = '';
+        self.setData({ deletingId: '' });
+      }
+    );
+  },
+
+  /** 删除成功后从「我的提交」里摘掉这一行，不整页重载 */
+  removeFromList: function (id) {
+    var list = this.data.list || [];
+    var rows = [];
+    for (var i = 0; i < list.length; i++) {
+      if (list[i] && list[i].id !== id) {
+        rows.push(list[i]);
+      }
+    }
+    var total = Number(this.data.total) || 0;
+    this.setData({ list: rows, total: Math.max(0, total - 1) });
   }
 });

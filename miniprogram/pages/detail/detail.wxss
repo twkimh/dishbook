@@ -73,6 +73,57 @@
   flex-wrap: wrap;
 }
 
+/* ---------- 上下架 / 删除（SPEC-v1.0.8 §5） ----------
+ * 与「修改」同一套描边胶囊风格，危险动作单列一种配色。
+ * ---------- */
+.detail-ops {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 18rpx;
+}
+
+.ops-entry {
+  flex: none;
+  margin-right: 16rpx;
+  padding: 8rpx 26rpx;
+  border: 2rpx dashed var(--accent-soft);
+  border-radius: 999rpx;
+  background-color: var(--card);
+  color: var(--accent);
+  font-size: 23rpx;
+  letter-spacing: 2rpx;
+  transition: transform 160ms ease;
+}
+
+/* 删除：灰褐描边 + 次要文字色，不和主行动色抢注意力 */
+.ops-entry-danger {
+  border-color: var(--line);
+  color: var(--ink-soft);
+}
+
+.detail-listed-badge {
+  flex: none;
+  padding: 4rpx 18rpx;
+  border-radius: 999rpx;
+  background-color: rgba(59, 48, 42, 0.16);
+  color: var(--ink-soft);
+  font-size: 21rpx;
+  letter-spacing: 1rpx;
+}
+
+.delete-tip {
+  margin-bottom: 18rpx;
+  padding: 16rpx 20rpx;
+  border-left: 6rpx solid var(--accent-soft);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background-color: rgba(138, 123, 109, 0.07);
+  color: var(--ink-soft);
+  font-size: 23rpx;
+  line-height: 1.6;
+  letter-spacing: 1rpx;
+}
+
 .detail-story {
   margin-top: 12rpx;
   padding: 20rpx 24rpx;

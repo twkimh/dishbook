@@ -1,18 +1,22 @@
 /**
- * menus 相关 action：current / start / close / list / detail（SPEC-v1.0.8 §2.1）。
+ * menus 相关 action：current / start / close / list / detail / review / update / delete
+ * （SPEC-v1.0.8 §2.1 + §5.3）。
  *
  * 三条硬规则：
  *  1. 同一时刻只允许一个 status='open' 的菜单 —— start 时先把所有 open 的关掉再建新的；
  *  2. 是否到期只由 endsAt 判断，**不改数据库里的 status**（保持数据真实），
  *     出参带 expired 布尔，order.create 也按同一规则拒绝点菜；
- *  3. 权限：start / close 仅主人家，current / list / detail 所有人。
+ *  3. 权限：start / close / update / delete / review 仅主人家，current / list / detail 所有人。
+ *
+ * v1.0.8 §5 起：deletedAt 非 null 的菜单（及其下订单）不出现在任何读取接口里；
+ * menu.delete 是软删除，并把该菜单下所有未删除的订单一起写上 deletedAt。
  */
 
 const { _, dishes, orders, menus, resolveContext, now } = require('../lib/db');
 const { unauthorized, notFound, invalid } = require('../lib/response');
 const { LIMITS, pickText, pickId, pickPaging, listResult } = require('../lib/validate');
 const { attachTempUrls } = require('../lib/storage');
-const { normalizePeople } = require('./dish');
+const { normalizePeople, notDeleted, isDeleted } = require('./dish');
 
 const MENU_STATUS = {
   OPEN: 'open',
@@ -75,7 +79,7 @@ async function findMenu(id) {
 async function findOpenMenu() {
   try {
     const res = await menus()
-      .where({ status: MENU_STATUS.OPEN })
+      .where(_.and([{ status: MENU_STATUS.OPEN }, notDeleted()]))
       .orderBy('startedAt', 'desc')
       .limit(1)
       .get();
@@ -91,7 +95,10 @@ async function findOpenMenu() {
 async function closeAllOpen(ts) {
   let list = [];
   try {
-    const res = await menus().where({ status: MENU_STATUS.OPEN }).limit(20).get();
+    const res = await menus()
+      .where(_.and([{ status: MENU_STATUS.OPEN }, notDeleted()]))
+      .limit(20)
+      .get();
     list = res && Array.isArray(res.data) ? res.data : [];
   } catch (err) {
     console.warn('[menu] 读取 open 菜单失败', err && (err.errCode || err.message));
@@ -204,13 +211,15 @@ async function close(ctx) {
   return {};
 }
 
-/** menu.list —— 历史菜单，按 startedAt 倒序分页。 */
+/** menu.list —— 历史菜单，按 startedAt 倒序分页。已删除的菜单不出现（where 过滤，分页才准）。 */
 async function list(ctx) {
   const paging = pickPaging(ctx.payload);
+  const where = _.and([notDeleted()]);
 
-  const countRes = await menus().count();
+  const countRes = await menus().where(where).count();
   const total = countRes && typeof countRes.total === 'number' ? countRes.total : 0;
   const listRes = await menus()
+    .where(where)
     .orderBy('startedAt', 'desc')
     .skip(paging.skip)
     .limit(paging.pageSize)
@@ -224,12 +233,13 @@ async function list(ctx) {
 
 /** 按 menuId 取订单（分页拉全，最多 5 页 500 条；读失败只降级为空）。 */
 async function fetchOrders(menuId) {
+  const where = _.and([{ menuId: menuId }, notDeleted()]);
   const out = [];
   for (let page = 0; page < ORDER_FETCH_MAX_PAGES; page += 1) {
     let batch = [];
     try {
       const res = await orders()
-        .where({ menuId: menuId })
+        .where(where)
         .orderBy('createdAt', 'asc')
         .skip(page * FETCH_PAGE)
         .limit(FETCH_PAGE)
@@ -243,6 +253,79 @@ async function fetchOrders(menuId) {
     if (batch.length < FETCH_PAGE) break;
   }
   return out;
+}
+
+/**
+ * 按 menuId 取订单（不带删除过滤，回收站 / 恢复 / 永久删除要用）。
+ * 读失败降级为空数组，绝不抛错。
+ */
+async function readMenuOrders(menuId) {
+  const out = [];
+  for (let page = 0; page < ORDER_FETCH_MAX_PAGES; page += 1) {
+    let batch = [];
+    try {
+      const res = await orders()
+        .where({ menuId: menuId })
+        .skip(page * FETCH_PAGE)
+        .limit(FETCH_PAGE)
+        .get();
+      batch = res && Array.isArray(res.data) ? res.data : [];
+    } catch (err) {
+      console.warn('[menu] 读取菜单订单失败', menuId, err && (err.errCode || err.message));
+      break;
+    }
+    for (let i = 0; i < batch.length; i += 1) out.push(batch[i]);
+    if (batch.length < FETCH_PAGE) break;
+  }
+  return out;
+}
+
+/** 逐条写订单（批量失败的降级路径）：单条失败重试一次，仍失败只告警。 */
+async function patchOrdersOneByOne(rows, patch, label) {
+  const list = Array.isArray(rows) ? rows : [];
+  let done = 0;
+  for (let i = 0; i < list.length; i += 1) {
+    const row = list[i];
+    if (!row || typeof row._id !== 'string' || !row._id) continue;
+    let success = false;
+    for (let attempt = 0; attempt < 2 && !success; attempt += 1) {
+      try {
+        await orders().doc(row._id).update({ data: patch });
+        success = true;
+      } catch (err) {
+        console.warn(
+          '[menu] 订单写入失败',
+          label,
+          row._id,
+          attempt,
+          err && (err.errCode || err.message)
+        );
+      }
+    }
+    if (success) done += 1;
+  }
+  return done;
+}
+
+/**
+ * 批量改某菜单下的订单（menu.delete 连带软删除 / restore 一起恢复共用）。
+ * 先走 where().update() 批量；批量不可用就逐条重试，最终失败只 warn，绝不阻断主流程。
+ */
+async function patchOrdersOfMenu(menuId, where, patch, label) {
+  try {
+    const res = await orders().where(where).update({ data: patch });
+    const updated = res && res.stats && typeof res.stats.updated === 'number' ? res.stats.updated : 0;
+    return updated;
+  } catch (err) {
+    console.warn(
+      '[menu] 订单批量写入失败，改为逐条重试',
+      label,
+      menuId,
+      err && (err.errCode || err.message)
+    );
+  }
+  const rows = await readMenuOrders(menuId);
+  return patchOrdersOneByOne(rows, patch, label);
 }
 
 /** 按 dishId 批量取菜品（400 上限，分批 100）；拿不到的菜直接缺省，不影响详情。 */
@@ -271,7 +354,8 @@ async function fetchDishes(dishIds) {
 async function detail(ctx) {
   const id = pickId(ctx.payload && ctx.payload.id, '菜单 id');
   const menu = await findMenu(id);
-  if (!menu) notFound('点菜单不存在或已被删除');
+  // 已进回收站的菜单按不存在处理（SPEC-v1.0.8 §5.3 规则 6）
+  if (!menu || isDeleted(menu)) notFound('点菜单不存在或已被删除');
 
   const rows = await fetchOrders(id);
   const buckets = {};
@@ -369,7 +453,7 @@ async function review(ctx) {
   const payload = ctx.payload || {};
   const id = pickId(payload.id, '菜单 id');
   const menu = await findMenu(id);
-  if (!menu) notFound('点菜单不存在或已被删除');
+  if (!menu || isDeleted(menu)) notFound('点菜单不存在或已被删除');
 
   // 规则 1：只有已结束的菜单才能确认
   if (menu.status !== MENU_STATUS.CLOSED) invalid('先结束这一轮再确认');
@@ -435,6 +519,81 @@ async function review(ctx) {
   return { reviewedAt: ts, review: reviewMap };
 }
 
+/* ------------------------------------ v1.0.8 §5：编辑 / 软删除点菜单 */
+
+/**
+ * menu.update —— 主人家改菜单基本信息（SPEC-v1.0.8 §5.3）。
+ * 只允许改 status !== 'closed' 的菜单；endsAt 传 null 表示取消预设结束时间。
+ * 未出现的字段一律不动（只 patch 显式传了的键），返回更新后的菜单对象。
+ */
+async function update(ctx) {
+  const resolved = await resolveContext(ctx.openid);
+  if (!resolved.isOwner) unauthorized('只有主人家可以修改点菜单');
+
+  const payload = ctx.payload || {};
+  const id = pickId(payload.id, '菜单 id');
+  const menu = await findMenu(id);
+  if (!menu || isDeleted(menu)) notFound('点菜单不存在或已被删除');
+  if (menu.status === MENU_STATUS.CLOSED) invalid('已结束的点菜单不能再改');
+
+  const patch = {};
+  if (payload.title !== undefined) {
+    const title = pickText(payload.title, {
+      field: 'title',
+      label: '菜单标题',
+      max: LIMITS.MENU_TITLE_MAX,
+    });
+    // 标题清空回落默认值，与 menu.start 保持一致
+    patch.title = title || DEFAULT_TITLE;
+  }
+  if (payload.dateText !== undefined) {
+    const dateText = pickText(payload.dateText, {
+      field: 'dateText',
+      label: '日期',
+      max: LIMITS.MENU_DATE_MAX,
+    });
+    const current = typeof menu.dateText === 'string' && menu.dateText ? menu.dateText : '';
+    patch.dateText = dateText || current || formatDateText(now());
+  }
+  if (payload.mealType !== undefined) patch.mealType = normalizeMealType(payload.mealType);
+  if (payload.headcount !== undefined) patch.headcount = pickHeadcount(payload.headcount);
+  // endsAt：传 null / 空串 / 非法值都归一为 null（取消预设结束时间）
+  if (payload.endsAt !== undefined) patch.endsAt = pickEndsAt(payload.endsAt);
+
+  // 一个可改字段都没传：不去打数据库（空的 update 会直接报错）
+  if (Object.keys(patch).length === 0) return shapeMenu(menu);
+
+  await menus().doc(id).update({ data: patch });
+  return shapeMenu(Object.assign({}, menu, patch));
+}
+
+/**
+ * menu.delete —— 主人家软删除点菜单（SPEC-v1.0.8 §5.3 规则 4）：
+ * 菜单本身写 deletedAt / deletedBy，该菜单下所有未删除的订单一起写上 deletedAt。
+ * 订单写入失败只告警：菜单已经进回收站，仍可通过恢复流程挽回。
+ */
+async function remove(ctx) {
+  const resolved = await resolveContext(ctx.openid);
+  if (!resolved.isOwner) unauthorized('只有主人家可以删除点菜单');
+
+  const id = pickId(ctx.payload && ctx.payload.id, '菜单 id');
+  const menu = await findMenu(id);
+  if (!menu || isDeleted(menu)) notFound('点菜单不存在或已被删除');
+
+  const ts = now();
+  await menus().doc(id).update({ data: { deletedAt: ts, deletedBy: ctx.openid } });
+
+  // 批量改 → 失败逐条重试 → 最终失败只 warn（绝不让菜单删除失败）
+  await patchOrdersOfMenu(
+    id,
+    _.and([{ menuId: id }, notDeleted()]),
+    { deletedAt: ts },
+    '菜单连带软删除'
+  );
+
+  return { id: id, deleted: true };
+}
+
 module.exports = {
   current: current,
   start: start,
@@ -442,10 +601,16 @@ module.exports = {
   list: list,
   detail: detail,
   review: review,
+  // v1.0.8 §5
+  update: update,
+  remove: remove,
   MENU_STATUS: MENU_STATUS,
   MEAL_TYPES: MEAL_TYPES,
   DECISION: DECISION,
   isExpired: isExpired,
   findOpenMenu: findOpenMenu,
   shapeMenu: shapeMenu,
+  findMenu: findMenu,
+  readMenuOrders: readMenuOrders,
+  patchOrdersOfMenu: patchOrdersOfMenu,
 };

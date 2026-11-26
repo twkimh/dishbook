@@ -280,3 +280,96 @@
 .cell {
   width: 100%;
 }
+
+/* ---------- 下架视图入口（搜索框下方，SPEC-v1.0.8 §5） ---------- */
+.listed-switch {
+  display: flex;
+  align-items: center;
+  margin: 18rpx 0 0;
+}
+
+.listed-toggle {
+  flex: none;
+  padding: 8rpx 26rpx;
+  border: 2rpx dashed var(--accent-soft);
+  border-radius: 999rpx;
+  background-color: var(--card);
+  color: var(--accent);
+  font-size: 23rpx;
+  letter-spacing: 2rpx;
+  transition: transform 160ms ease;
+}
+
+/* 回到菜谱视图时换成抹茶绿描边，和「下架」一眼可分 */
+.listed-toggle-back {
+  border-style: solid;
+  border-color: var(--sage);
+  color: var(--sage);
+}
+
+.listed-switch-hint {
+  margin-left: 16rpx;
+  color: var(--ink-soft);
+  font-size: 21rpx;
+  letter-spacing: 1rpx;
+  opacity: 0.8;
+}
+
+/* ---------- 下架卡片（页面自己写，不用 dish-card：不下单就不给三个按钮） ---------- */
+.delisted-card {
+  margin: 26rpx 0 38rpx;
+  padding: 14rpx 14rpx 20rpx;
+  border-radius: var(--radius);
+  background-color: var(--card);
+  box-shadow: var(--shadow);
+}
+
+.delisted-cover-wrap {
+  position: relative;
+  overflow: hidden;
+  border-radius: 18rpx;
+}
+
+.delisted-cover {
+  display: block;
+  width: 100%;
+  height: 240rpx;
+}
+
+/* 没有封面：虚线框占位，不留裂图 */
+.delisted-cover-blank {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border: 2rpx dashed var(--line);
+  background-color: rgba(234, 223, 203, 0.45);
+  color: var(--ink-soft);
+  font-size: 23rpx;
+  letter-spacing: 2rpx;
+}
+
+/* 「已下架」徽标：灰调胶囊，压在封面右上角 */
+.delisted-badge {
+  position: absolute;
+  top: 12rpx;
+  right: 12rpx;
+  padding: 4rpx 16rpx;
+  border-radius: 999rpx;
+  background-color: rgba(59, 48, 42, 0.55);
+  color: var(--card);
+  font-size: 20rpx;
+  letter-spacing: 1rpx;
+}
+
+.delisted-name {
+  margin-top: 16rpx;
+  padding: 0 6rpx;
+  color: var(--ink);
+  font-size: 28rpx;
+  font-weight: 600;
+  letter-spacing: 1rpx;
+  line-height: 1.4;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}

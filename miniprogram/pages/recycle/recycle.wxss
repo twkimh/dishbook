@@ -1,0 +1,362 @@
+/* 回收站页（非 tab 页，底部不留 tabBar 空间，但要给固定操作栏留位）
+ * 只允许 var(--x) 与 rgba()，不出现颜色字面量。
+ */
+
+.recycle-page {
+  padding-bottom: 260rpx;
+}
+
+.recycle-page .page-head {
+  margin-bottom: 20rpx;
+}
+
+/* ---------- 分类切换（与待审核页同款 chip） ---------- */
+.mode-bar {
+  display: flex;
+  margin-bottom: 20rpx;
+}
+
+.mode-chip {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  margin-right: 16rpx;
+  padding: 18rpx 20rpx;
+  border: 2rpx dashed var(--line);
+  border-radius: 999rpx;
+  background-color: rgba(255, 253, 248, 0.55);
+}
+
+.mode-chip:last-child {
+  margin-right: 0;
+}
+
+.mode-chip.is-on {
+  border-color: var(--accent);
+  background-color: var(--accent-soft);
+}
+
+.mode-text {
+  color: var(--ink-soft);
+  font-size: 26rpx;
+  letter-spacing: 2rpx;
+}
+
+.mode-chip.is-on .mode-text {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.mode-num {
+  min-width: 34rpx;
+  margin-left: 10rpx;
+  padding: 0 10rpx;
+  border-radius: 999rpx;
+  background-color: rgba(90, 62, 40, 0.10);
+  color: var(--ink-soft);
+  font-size: 20rpx;
+  font-weight: 700;
+  line-height: 34rpx;
+  text-align: center;
+}
+
+.mode-chip.is-on .mode-num {
+  background-color: var(--accent);
+  color: var(--card);
+}
+
+/* ---------- 全选 / 清空本分类 ---------- */
+.tool-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 22rpx;
+}
+
+.tool {
+  padding: 10rpx 24rpx;
+  border: 2rpx dashed var(--line);
+  border-radius: 999rpx;
+  background-color: rgba(255, 253, 248, 0.55);
+  color: var(--ink-soft);
+  font-size: 22rpx;
+  letter-spacing: 1rpx;
+}
+
+.tool.is-on {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.tool-danger {
+  color: var(--ink-soft);
+  border-color: var(--line);
+}
+
+/* ---------- 卡片 ---------- */
+.card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 24rpx;
+  padding: 22rpx 24rpx;
+}
+
+.card.is-picked {
+  background-color: rgba(248, 211, 188, 0.35);
+}
+
+/* 自定义圆框复选框（不用原生 checkbox） */
+.pick {
+  display: flex;
+  flex: 0 0 44rpx;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 44rpx;
+  height: 44rpx;
+  margin-right: 18rpx;
+  border: 2rpx dashed var(--ink-soft);
+  border-radius: 50%;
+  background-color: rgba(255, 253, 248, 0.65);
+  transition: transform 160ms ease;
+}
+
+.is-picked .pick {
+  border-style: solid;
+  border-color: var(--accent);
+  background-color: var(--accent-soft);
+}
+
+.pick-dot {
+  width: 24rpx;
+  height: 24rpx;
+  border-radius: 50%;
+  background-color: var(--accent);
+}
+
+/* ---------- 封面小图（取不到就用纯 CSS 占位） ---------- */
+.thumb {
+  flex: 0 0 104rpx;
+  width: 104rpx;
+  height: 104rpx;
+  margin-right: 20rpx;
+  border-radius: 18rpx;
+  overflow: hidden;
+  background-color: rgba(234, 223, 203, 0.45);
+}
+
+.thumb-img {
+  width: 100%;
+  height: 100%;
+}
+
+.thumb-blank {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.thumb-mark {
+  color: var(--ink-soft);
+  font-size: 32rpx;
+  font-weight: 700;
+  letter-spacing: 2rpx;
+}
+
+/* ---------- 卡片正文 ---------- */
+.body {
+  flex: 1;
+  min-width: 0;
+}
+
+.body-menu {
+  padding-left: 4rpx;
+}
+
+.body-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+  color: var(--ink);
+  font-size: 28rpx;
+  font-weight: 600;
+  letter-spacing: 1rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.flag {
+  flex: 0 0 auto;
+  margin-left: 14rpx;
+  padding: 4rpx 16rpx;
+  border-radius: 999rpx;
+  background-color: rgba(232, 180, 74, 0.26);
+  color: var(--ink);
+  font-size: 20rpx;
+  letter-spacing: 1rpx;
+}
+
+.flag-count {
+  background-color: rgba(124, 154, 109, 0.20);
+  color: var(--sage);
+}
+
+.reason {
+  margin-top: 8rpx;
+  color: var(--ink-soft);
+  font-size: 22rpx;
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta-line {
+  margin-top: 8rpx;
+  color: var(--ink-soft);
+  font-size: 22rpx;
+  letter-spacing: 1rpx;
+}
+
+.meta {
+  display: flex;
+  align-items: baseline;
+  margin-top: 10rpx;
+}
+
+.time {
+  color: var(--ink-soft);
+  font-size: 22rpx;
+}
+
+.left {
+  flex: 0 0 auto;
+  margin-left: 16rpx;
+  color: var(--accent);
+  font-size: 22rpx;
+  font-weight: 600;
+  letter-spacing: 1rpx;
+}
+
+/* ---------- 卡片底部：恢复 / 永久删除 ---------- */
+.card-foot {
+  display: flex;
+  flex: 0 0 100%;
+  justify-content: flex-end;
+  margin-top: 16rpx;
+  padding-top: 14rpx;
+  border-top: 2rpx dashed var(--line);
+}
+
+.mini-btn {
+  margin-left: 16rpx;
+  padding: 10rpx 26rpx;
+  border: 2rpx solid var(--accent);
+  border-radius: 999rpx;
+  color: var(--accent);
+  font-size: 22rpx;
+  letter-spacing: 1rpx;
+  transition: transform 160ms ease;
+}
+
+.mini-btn-danger {
+  border-color: var(--line);
+  color: var(--ink-soft);
+}
+
+/* ---------- 骨架 ---------- */
+.skel-card {
+  margin-bottom: 24rpx;
+  padding: 22rpx 24rpx;
+}
+
+.skeleton-cover {
+  width: 104rpx;
+  height: 104rpx;
+  margin-right: 20rpx;
+  margin-bottom: 0;
+}
+
+.skeleton-title {
+  width: 50%;
+}
+
+.skeleton-sub {
+  width: 30%;
+  margin-bottom: 0;
+}
+
+/* ---------- 底部提示 / 弱化清空入口 ---------- */
+.foot-hint {
+  padding: 16rpx 0 10rpx;
+  color: var(--ink-soft);
+  font-size: 22rpx;
+  text-align: center;
+  letter-spacing: 1rpx;
+}
+
+.wipe-all {
+  margin: 40rpx auto 0;
+  padding: 18rpx 0;
+  width: 320rpx;
+  border: 2rpx dashed var(--line);
+  border-radius: 999rpx;
+  color: var(--ink-soft);
+  font-size: 22rpx;
+  text-align: center;
+  letter-spacing: 2rpx;
+  transition: transform 160ms ease;
+}
+
+/* ---------- 固定多选操作栏（不在任何 .paper / .tilt-* 里） ---------- */
+.action-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  display: flex;
+  box-sizing: border-box;
+  padding: 18rpx 24rpx calc(18rpx + env(safe-area-inset-bottom));
+  background-color: var(--card);
+  border-top: 2rpx dashed var(--line);
+  box-shadow: var(--shadow);
+}
+
+.action-btn {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  margin-right: 16rpx;
+  padding: 20rpx 0;
+  border: 2rpx solid var(--accent);
+  border-radius: var(--radius);
+  color: var(--accent);
+  font-size: 26rpx;
+  font-weight: 600;
+  letter-spacing: 2rpx;
+  transition: transform 160ms ease;
+}
+
+.action-btn:last-child {
+  margin-right: 0;
+}
+
+.action-btn-danger {
+  border-color: transparent;
+  background-color: var(--accent);
+  color: var(--card);
+}

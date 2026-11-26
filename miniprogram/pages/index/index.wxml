@@ -4,8 +4,8 @@
     <view class="page-sub">主人家做过的菜，都会收在这里</view>
   </view>
 
-  <!-- 搜索框：输入后 300ms 防抖再请求 -->
-  <view class="search paper">
+  <!-- 搜索框：输入后 300ms 防抖再请求（只服务菜谱视图，下架视图不显示） -->
+  <view wx:if="{{!listedView}}" class="search paper">
     <view class="search-icon"></view>
     <input
       class="search-input"
@@ -26,8 +26,19 @@
     >清空</view>
   </view>
 
+  <!-- 下架视图入口：页内切换，不新建页面（SPEC-v1.0.8 §5） -->
+  <view class="listed-switch">
+    <view
+      class="listed-toggle tap {{listedView ? 'listed-toggle-back' : ''}}"
+      hover-class="tap-shrink"
+      hover-stay-time="60"
+      bindtap="onToggleListed"
+    >{{listedView ? '返回菜谱' : '下架'}}</view>
+    <text wx:if="{{listedView}}" class="listed-switch-hint">已下架的菜不能点菜</text>
+  </view>
+
   <!-- 标签筛选条：横向滚动，点选过滤，再点取消 -->
-  <scroll-view wx:if="{{tags.length}}" class="tag-bar" scroll-x>
+  <scroll-view wx:if="{{!listedView && tags.length}}" class="tag-bar" scroll-x>
     <view class="tag-bar-track">
       <view
         wx:for="{{tags}}"
@@ -58,6 +69,48 @@
         <view class="skeleton-body">
           <view class="skeleton-line"></view>
           <view class="skeleton-line skeleton-line-short"></view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view wx:elif="{{listedView && list.length}}" class="grid">
+    <!-- 下架列表用页面自己写的简化卡片（封面 + 菜名 + 「已下架」徽标）。
+         刻意不用 dish-card：下架的菜不能点菜，也不该出现 + / ♥ / 馋 三个按钮，
+         而组件样式无法从页面 wxss 穿透，所以这里直接写页面级卡片。 -->
+    <view class="column">
+      <view wx:for="{{leftColumn}}" wx:key="_id" class="cell">
+        <view
+          class="delisted-card tilt-l"
+          hover-class="tap-shrink"
+          hover-stay-time="60"
+          data-id="{{item._id}}"
+          bindtap="onDelistedTap"
+        >
+          <view class="delisted-cover-wrap">
+            <image wx:if="{{item.cover}}" class="delisted-cover" src="{{item.cover}}" mode="aspectFill" />
+            <view wx:else class="delisted-cover delisted-cover-blank">没有照片</view>
+            <view class="delisted-badge">已下架</view>
+          </view>
+          <view class="delisted-name">{{item.name}}</view>
+        </view>
+      </view>
+    </view>
+    <view class="column">
+      <view wx:for="{{rightColumn}}" wx:key="_id" class="cell">
+        <view
+          class="delisted-card tilt-r"
+          hover-class="tap-shrink"
+          hover-stay-time="60"
+          data-id="{{item._id}}"
+          bindtap="onDelistedTap"
+        >
+          <view class="delisted-cover-wrap">
+            <image wx:if="{{item.cover}}" class="delisted-cover" src="{{item.cover}}" mode="aspectFill" />
+            <view wx:else class="delisted-cover delisted-cover-blank">没有照片</view>
+            <view class="delisted-badge">已下架</view>
+          </view>
+          <view class="delisted-name">{{item.name}}</view>
         </view>
       </view>
     </view>

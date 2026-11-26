@@ -316,6 +316,21 @@
   font-size: 22rpx;
 }
 
+/* 时间与删除同一行：删除靠右，弱化处理（它不是这一行的主要动作） */
+.row-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.row-del {
+  margin-top: 10rpx;
+  padding: 2rpx 4rpx;
+  color: var(--ink-soft);
+  font-size: 22rpx;
+  text-decoration: underline;
+}
+
 /* ---------- 骨架 ---------- */
 .skeleton-cover {
   width: 120rpx;

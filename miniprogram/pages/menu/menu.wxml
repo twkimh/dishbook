@@ -37,6 +37,14 @@
       <view class="status-foot">
         <text class="remain-label">剩余时间</text>
         <text class="remain-value">{{menu.remainingText}}</text>
+        <!-- 改前置信息（§5.3 menu.update）：小字链接，复用「开始点菜」浮层 -->
+        <view
+          wx:if="{{isOwner && !readonly && menu.status === 'open'}}"
+          class="status-edit tap"
+          hover-class="tap-shrink"
+          hover-stay-time="60"
+          bindtap="onOpenEdit"
+        >修改</view>
       </view>
     </block>
     <block wx:else>
@@ -253,6 +261,16 @@
     >{{reviewSubmitting ? '正在确认…' : '确认这一轮'}}</view>
   </view>
 
+  <!-- 删除这一轮（§5.3 menu.delete）：次要入口，弱于「确认这一轮」，不并排 -->
+  <view wx:if="{{viewMode === 'review' && !reviewEmpty && reviewMenu}}" class="review-del-wrap">
+    <view
+      class="review-del tap {{reviewDeleting ? 'is-busy' : ''}}"
+      hover-class="tap-shrink"
+      hover-stay-time="60"
+      bindtap="onDeleteReviewMenu"
+    >{{reviewDeleting ? '正在删除…' : '删除这一轮'}}</view>
+  </view>
+
   <!-- ---------- 底部：历史入口（只属于 normal 视图） ---------- -->
   <view wx:if="{{viewMode === 'normal'}}" class="history-foot tap" hover-class="tap-shrink" hover-stay-time="60" bindtap="onOpenHistory">
     <text class="history-text">历史点菜单</text>
@@ -268,7 +286,7 @@
 <!-- 开始点菜浮层 -->
 <view wx:if="{{sheetShow}}" class="mask" catchtap="onSheetMaskTap" catchtouchmove="noop">
   <view class="sheet" catchtap="noop">
-    <view class="sheet-title">开始点菜</view>
+    <view class="sheet-title">{{sheetMode === 'edit' ? '修改点菜信息' : '开始点菜'}}</view>
     <scroll-view class="sheet-body" scroll-y>
       <view class="field">
         <text class="field-label">标题</text>
@@ -324,13 +342,13 @@
       </view>
     </scroll-view>
     <view class="sheet-foot">
-      <view class="btn-ghost tap" hover-class="tap-shrink" hover-stay-time="60" bindtap="onCloseSheet">先不填</view>
+      <view class="btn-ghost tap" hover-class="tap-shrink" hover-stay-time="60" bindtap="onCloseSheet">{{sheetMode === 'edit' ? '不改了' : '先不填'}}</view>
       <view
         class="btn-main tap {{submitting ? 'is-busy' : ''}}"
         hover-class="tap-shrink"
         hover-stay-time="60"
         bindtap="onSubmitStart"
-      >{{submitting ? '正在开始…' : '开始'}}</view>
+      >{{sheetMode === 'edit' ? (submitting ? '正在保存…' : '保存') : (submitting ? '正在开始…' : '开始')}}</view>
     </view>
   </view>
 </view>
@@ -356,6 +374,15 @@
           <text class="his-meta">{{item.dateText}} · {{item.mealType}} · {{item.headcountText}}</text>
         </view>
         <text class="his-status">{{item.statusText}}</text>
+        <!-- 每个历史项也能删（§5.3 menu.delete）：catchtap 别冒泡到整行的 onTapHistory -->
+        <view
+          wx:if="{{isOwner}}"
+          class="his-del tap {{historyDeleting ? 'is-busy' : ''}}"
+          hover-class="tap-shrink"
+          hover-stay-time="60"
+          data-id="{{item.id}}"
+          catchtap="onDeleteHistory"
+        >删除</view>
       </view>
       <view
         wx:if="{{historyHasMore}}"

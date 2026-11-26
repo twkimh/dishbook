@@ -12,7 +12,7 @@ const { unauthorized, notFound, invalid } = require('../lib/response');
 const { LIMITS, pickText, pickId, pickPaging, listResult, pickProfile } = require('../lib/validate');
 const { checkUserText, joinText } = require('../lib/security');
 const { sendOrderNotice, sendOrderConfirmNotice, NOTIFY_STATE } = require('../lib/notify');
-const { findDish, canSeeDish } = require('./dish');
+const { findDish, canSeeDish, notDeleted, isDeleted } = require('./dish');
 const { findOpenMenu, isExpired } = require('./menu');
 const { attachTempUrls, isCloudFileId } = require('../lib/storage');
 
@@ -57,6 +57,10 @@ async function create(ctx) {
 
   const resolved = await resolveContext(ctx.openid);
   if (!canSeeDish(dish, ctx.openid, resolved.isOwner)) notFound('菜品不存在或暂不可见');
+
+  // 下架的菜不能点（v1.0.8 §5.1）：菜谱首页的下架视图明确写了「已下架的菜不能点菜」，
+  // 但详情页仍可从别的入口进来，所以权威判断必须在服务端，不能只靠前端隐藏按钮。
+  if (dish.listed === false) invalid('这道菜已经下架了');
 
   // 内容安全：命中违规直接 INVALID，不落库
   await checkUserText(ctx.openid, joinText(note));
@@ -149,6 +153,10 @@ async function create(ctx) {
   return { id: orderId, notifyState: notifyState };
 }
 
+/**
+ * 删除 / 取消状态的过滤条件一律进 where（SPEC-v1.0.8 §5.3 规则 6）：
+ * 已进回收站的订单属于「已删除的菜单」，不出现在点菜记录里，也不参与分页计数。
+ */
 async function list(ctx) {
   const resolved = await resolveContext(ctx.openid);
   if (!resolved.isOwner) unauthorized('只有主人家可以查看点菜记录');
@@ -156,7 +164,7 @@ async function list(ctx) {
   const payload = ctx.payload || {};
   const paging = pickPaging(payload);
 
-  let where = {};
+  let where = null;
   if (payload.status !== undefined && payload.status !== null && payload.status !== '') {
     const status = String(payload.status).trim();
     if (
@@ -167,10 +175,10 @@ async function list(ctx) {
       invalid('status 只能是 new / done / cancelled');
     }
     // 显式查某个状态：含 status='cancelled' 的历史查询入口
-    where = { status: status };
+    where = _.and([{ status: status }, notDeleted()]);
   } else {
     // 默认过滤掉已取消的：否则取消掉的菜还挂在「待处理」里
-    where = { status: _.neq(ORDER_STATUS.CANCELLED) };
+    where = _.and([{ status: _.neq(ORDER_STATUS.CANCELLED) }, notDeleted()]);
   }
 
   const countRes = await orders().where(where).count();
@@ -194,6 +202,8 @@ async function done(ctx) {
   const id = pickId(ctx.payload && ctx.payload.id, '点菜记录 id');
   const order = await findOrder(id);
   if (!order) notFound('点菜记录不存在或已被删除');
+  // 已进回收站的订单（随菜单一起删除）不能再改状态
+  if (isDeleted(order)) notFound('点菜记录不存在或已被删除');
   if (order.status === ORDER_STATUS.DONE) return {};
   // 已取消的记录不能被「处理」回 done，否则取消等于白取消
   if (order.status === ORDER_STATUS.CANCELLED) invalid('这条点菜记录已取消');
@@ -213,6 +223,8 @@ async function cancel(ctx) {
   const id = pickId(ctx.payload && ctx.payload.id, '点菜记录 id');
   const order = await findOrder(id);
   if (!order) notFound('点菜记录不存在或已被取消');
+  // 已进回收站的订单（随菜单一起删除）不能再取消
+  if (isDeleted(order)) notFound('点菜记录不存在或已被取消');
 
   const resolved = await resolveContext(ctx.openid);
   const orderer =

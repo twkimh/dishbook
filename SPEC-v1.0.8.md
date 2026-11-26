@@ -139,3 +139,54 @@
 
 ### 4.4 `menu.detail` 返回追加
 `{ menu, dishes }` 里 `menu` 对象除原有字段外，追加 `reviewedAt` 与 `review`（原样带出）。
+
+## 5. 软删除 / 上下架 / 回收站（v1.0.8 追加）
+
+### 5.1 数据模型
+`dishes` 新增：
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `listed` | boolean | 是否上架，默认 `true`。`false` = 已下架（所有人可在「下架」列表看到） |
+| `deletedAt` | number\|null | 进回收站的时间；非 null 即已删除 |
+| `deletedBy` | string | 谁删的 openid |
+| `deleteReason` | string | 删除理由（创建者删除时必填；主人家删除可空） |
+| `deletedFrom` | string | 删除前所处状态：`'listed'` \| `'delisted'` \| `'pending'`，用于恢复 |
+
+`menus` 新增：`deletedAt` / `deletedBy`
+`orders` 新增：`deletedAt`（跟随菜单一起进回收站）
+
+`dishEdits` 新增：
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `type` | string | `'edit'`（默认）\| `'delete'` |
+| `reason` | string | 删除理由，`type='delete'` 时必填 |
+
+### 5.2 权限矩阵
+| 操作 | 主人家 | 创建者本人 | 其他人 |
+|---|---|---|---|
+| 下架 / 重新上架 | ✅ 直接生效 | ✅ 直接生效 | ❌ |
+| 删除菜品 | ✅ **直接进回收站，理由可空** | ⚠️ **必须填理由 → 进审核队列** | ❌ |
+| 删除点菜单 | ✅ 直接进回收站 | — | ❌ |
+| 回收站查看 / 恢复 / 永久删除 / 清空 | ✅ | ❌ | ❌ |
+
+### 5.3 新增与变更 action
+| action | payload | 权限 | 返回 |
+|---|---|---|---|
+| `dish.setListed` | `{ id, listed }` | 创建者或主人家 | `{ id, listed }` |
+| `dish.remove` | `{ id, reason }` | 见权限矩阵 | 主人：`{ id, deleted: true }`；创建者：`{ id, status: 'pending' }` |
+| `menu.update` | `{ id, title, dateText, mealType, headcount, endsAt }` | 主人家 | 更新后的菜单对象 |
+| `menu.delete` | `{ id }` | 主人家 | `{ id, deleted: true }` |
+| `recycle.list` | `{ type? }` | 主人家 | `{ dishes: [], menus: [] }`（按 `deletedAt` 倒序） |
+| `recycle.restore` | `{ type, ids: [] }` | 主人家 | `{ restored: number }` |
+| `recycle.purge` | `{ type, ids: [] }` | 主人家 | `{ purged: number }` |
+| `recycle.clear` | `{ type? }` | 主人家 | `{ purged: number }`；`type` 为空 = 清空整个回收站 |
+
+补充规则：
+1. `dish.remove` 改动语义：**不再物理删除**，改为软删除或写删除提案
+2. `dish.editReview` 审到 `type='delete'` 的提案且通过 → 把该菜品软删除（`deletedFrom` 取当前 listed 状态）
+3. `menu.update` 只允许改 `status !== 'closed'` 的菜单（已结束的不给改）；`endsAt` 传 `null` 表示取消预设结束时间
+4. `menu.delete` 软删除该菜单**及其下所有未删除的订单**（订单的 `deletedAt` 一起写）
+5. **懒删除**：上面四个 `recycle.*` action 在执行前，先把 `deletedAt + 30 天 < now` 的记录**物理删除**（菜品连图片 fileID 不管，订单直接删，菜单直接删）
+6. `deletedAt` 非 null 的记录**不得**出现在：`dish.list`、`dish.mine`、`dish.reviewList`、`dish.get`、`menu.current`、`menu.list`、`menu.detail`、`order.list`、`dish.orderers`
+7. `dish.list` 增加可选 `listed` 参数（默认 `true`）：传 `false` 返回**已下架**列表（所有人可见）；下架菜**不出现**在默认列表中
+8. 恢复菜品时：`deletedAt=null`、`listed` 按 `deletedFrom` 还原（`delisted` → 保持下架，其它 → 上架）

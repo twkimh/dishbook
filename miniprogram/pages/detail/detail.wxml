@@ -30,6 +30,25 @@
       <view class="edit-entry tap" hover-class="tap-shrink" hover-stay-time="60" bindtap="onOpenEdit">修改</view>
     </view>
 
+    <!-- 上下架 / 删除（SPEC-v1.0.8 §5）：动作只给创建者与主人家；「已下架」徽标所有人可见 -->
+    <view wx:if="{{canManageListed || !listed}}" class="detail-ops">
+      <view
+        wx:if="{{canManageListed}}"
+        class="ops-entry tap {{listedBusy ? 'is-busy' : ''}}"
+        hover-class="tap-shrink"
+        hover-stay-time="60"
+        bindtap="onToggleListed"
+      >{{listedText}}</view>
+      <view
+        wx:if="{{canDelete}}"
+        class="ops-entry ops-entry-danger tap {{deleting ? 'is-busy' : ''}}"
+        hover-class="tap-shrink"
+        hover-stay-time="60"
+        bindtap="onDeleteTap"
+      >删除</view>
+      <view wx:if="{{!listed}}" class="detail-listed-badge">已下架</view>
+    </view>
+
     <view wx:if="{{tagList.length}}" class="detail-tags">
       <tag-chip wx:for="{{tagList}}" wx:key="text" text="{{item.text}}" tone="{{item.tone}}" />
     </view>
@@ -204,13 +223,13 @@
     </view>
 
     <view
-      class="sketch-btn order-btn {{menuReady ? '' : 'order-btn-disabled'}} {{ordering || ordered ? 'order-btn-busy' : ''}}"
-      hover-class="{{menuReady && !ordering && !ordered ? 'tap-shrink' : 'none'}}"
+      class="sketch-btn order-btn {{menuReady && listed !== false ? '' : 'order-btn-disabled'}} {{ordering || ordered ? 'order-btn-busy' : ''}}"
+      hover-class="{{menuReady && listed !== false && !ordering && !ordered ? 'tap-shrink' : 'none'}}"
       hover-stay-time="60"
       bindtap="onOrderTap"
     >
-      <text wx:if="{{menuReady}}" class="act-icon">+</text>
-      <text class="act-label">{{menuReady ? (ordered ? '已点 · 主人家能看到' : (ordering ? '正在点菜…' : '点这道菜')) : noMenuLabel}}</text>
+      <text wx:if="{{menuReady && listed !== false}}" class="act-icon">+</text>
+      <text class="act-label">{{listed === false ? '这道菜已下架' : (menuReady ? (ordered ? '已点 · 主人家能看到' : (ordering ? '正在点菜…' : '点这道菜')) : noMenuLabel)}}</text>
     </view>
   </view>
 
@@ -370,6 +389,41 @@
           hover-stay-time="60"
           bindtap="onSubmitEdit"
         >{{editSubmitting ? '提交中…' : '保存修改'}}</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 删除理由浮层：创建者删除时必须填，提交后进主人家的审核队列（SPEC-v1.0.8 §5.2） -->
+  <view wx:if="{{deleteOpen}}" class="sheet-mask" catchtap="onCloseDelete" catchtouchmove="noop">
+    <view class="sheet" catchtap="noop">
+      <view class="sheet-head">
+        <text class="sheet-title">删除这道菜</text>
+        <text class="sheet-close" catchtap="onCloseDelete">×</text>
+      </view>
+      <view class="sheet-body">
+        <view class="delete-tip">删除申请由主人家审核，通过后进回收站保留 30 天</view>
+        <view class="form-head">
+          <text class="form-label">删除理由</text>
+          <text class="form-counter {{deleteReasonLen > deleteReasonMax ? 'form-counter-over' : ''}}">{{deleteReasonLen}}/{{deleteReasonMax}}</text>
+        </view>
+        <textarea
+          class="form-textarea"
+          value="{{deleteReason}}"
+          maxlength="{{deleteReasonMax}}"
+          placeholder="为什么想删掉这道菜？"
+          placeholder-class="ph"
+          auto-height
+          bindinput="onDeleteReasonInput"
+        />
+      </view>
+      <view class="sheet-foot">
+        <view class="sheet-btn sheet-btn-ghost tap" hover-class="tap-shrink" hover-stay-time="60" bindtap="onCloseDelete">取消</view>
+        <view
+          class="sheet-btn sheet-btn-main tap {{deleting ? 'is-disabled' : ''}}"
+          hover-class="{{deleting ? 'none' : 'tap-shrink'}}"
+          hover-stay-time="60"
+          bindtap="onSubmitDelete"
+        >{{deleting ? '提交中…' : '提交删除申请'}}</view>
       </view>
     </view>
   </view>

@@ -103,9 +103,16 @@ function dishUpdate(dish) {
   return call('dish.update', dish || {});
 }
 
-// dishRemove(id) -> {}
-function dishRemove(id) {
-  return call('dish.remove', { id: id });
+// dishRemove(id, reason) -> 主人家 { id, deleted:true } / 创建者 { id, status:'pending' }
+// v1.0.8 起改为软删除：主人家直接进回收站；创建者必须填理由并进审核队列
+function dishRemove(id, reason) {
+  return call('dish.remove', { id: id, reason: reason || '' });
+}
+
+// dishSetListed(id, listed) -> { id, listed }
+// 下架 / 重新上架，创建者或主人家直接生效，不走审核
+function dishSetListed(id, listed) {
+  return call('dish.setListed', { id: id, listed: !!listed });
 }
 
 // dishMine({ page, pageSize }) -> { list, total, hasMore }
@@ -181,6 +188,20 @@ function dishEditHistory(dishId, params) {
   });
 }
 
+// dishMyEdits({ page, pageSize, type }) -> { list, total, hasMore }
+// 我提交过的修改 / 删除申请；type 传 'delete' 只看删除申请
+function dishMyEdits(params) {
+  var p = params || {};
+  var payload = {
+    page: p.page === undefined ? 1 : p.page,
+    pageSize: p.pageSize === undefined ? 20 : p.pageSize
+  };
+  if (p.type) {
+    payload.type = p.type;
+  }
+  return call('dish.myEdits', payload);
+}
+
 /* ---------- 喜欢 / 想吃（v1.0.8） ---------- */
 
 // dishLike(id)   -> { liked:true,  likeCount, likes }
@@ -248,6 +269,50 @@ function dishOrderers(id) {
   return call('dish.orderers', { id: id });
 }
 
+/* ---------- 软删除 / 回收站（v1.0.8） ---------- */
+
+// menuUpdate(id, fields) -> 更新后的菜单对象  仅主人家，已结束的不能改
+function menuUpdate(id, fields) {
+  var f = fields || {};
+  return call('menu.update', {
+    id: id,
+    title: f.title,
+    dateText: f.dateText,
+    mealType: f.mealType,
+    headcount: f.headcount,
+    endsAt: f.endsAt === undefined ? null : f.endsAt
+  });
+}
+
+// menuDelete(id) -> { id, deleted:true }  仅主人家；菜单与其点菜记录一起进回收站
+function menuDelete(id) {
+  return call('menu.delete', { id: id });
+}
+
+// recycleList(type?) -> { dishes: [], menus: [] }  仅主人家；type: 'dish' | 'menu'
+function recycleList(type) {
+  var p = {};
+  if (type) { p.type = type; }
+  return call('recycle.list', p);
+}
+
+// recycleRestore(type, ids) -> { restored }  仅主人家
+function recycleRestore(type, ids) {
+  return call('recycle.restore', { type: type, ids: ids || [] });
+}
+
+// recyclePurge(type, ids) -> { purged }  仅主人家
+function recyclePurge(type, ids) {
+  return call('recycle.purge', { type: type, ids: ids || [] });
+}
+
+// recycleClear(type?) -> { purged }  仅主人家；不传 type 表示清空整个回收站
+function recycleClear(type) {
+  var p = {};
+  if (type) { p.type = type; }
+  return call('recycle.clear', p);
+}
+
 module.exports = {
   login: login,
   profileGet: profileGet,
@@ -264,6 +329,7 @@ module.exports = {
   dishEditList: dishEditList,
   dishEditReview: dishEditReview,
   dishEditHistory: dishEditHistory,
+  dishMyEdits: dishMyEdits,
   dishLike: dishLike,
   dishUnlike: dishUnlike,
   dishWant: dishWant,
@@ -278,5 +344,12 @@ module.exports = {
   menuList: menuList,
   menuDetail: menuDetail,
   menuReview: menuReview,
-  dishOrderers: dishOrderers
+  dishOrderers: dishOrderers,
+  dishSetListed: dishSetListed,
+  menuUpdate: menuUpdate,
+  menuDelete: menuDelete,
+  recycleList: recycleList,
+  recycleRestore: recycleRestore,
+  recyclePurge: recyclePurge,
+  recycleClear: recycleClear
 };

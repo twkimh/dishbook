@@ -17,8 +17,9 @@ const dish = require('./routes/dish');
 const order = require('./routes/order');
 const profile = require('./routes/profile');
 const menu = require('./routes/menu');
+const recycle = require('./routes/recycle');
 
-/** action -> 处理函数（SPEC §4 表格 + SPEC-v1.0.8 §2.1 表格全量） */
+/** action -> 处理函数（SPEC §4 表格 + SPEC-v1.0.8 §2.1/§2.2/§5.3 表格全量） */
 const ROUTES = {
   login: login,
   'dish.list': dish.list,
@@ -34,12 +35,15 @@ const ROUTES = {
   'dish.editList': dish.editList,
   'dish.editReview': dish.editReview,
   'dish.editHistory': dish.editHistory,
+  'dish.myEdits': dish.myEdits,
   'dish.like': dish.like,
   'dish.unlike': dish.unlike,
   'dish.want': dish.want,
   'dish.unwant': dish.unwant,
   // v1.0.8 §4.3：点过这道菜的人
   'dish.orderers': dish.orderers,
+  // v1.0.8 §5.3：上下架（创建者或主人家）
+  'dish.setListed': dish.setListed,
   'order.create': order.create,
   'order.list': order.list,
   'order.done': order.done,
@@ -53,6 +57,14 @@ const ROUTES = {
   'menu.detail': menu.detail,
   // v1.0.8 §4.3：结束点菜单后的逐菜确认（cookedCount 唯一增加点）
   'menu.review': menu.review,
+  // v1.0.8 §5.3：点菜单编辑 / 软删除
+  'menu.update': menu.update,
+  'menu.delete': menu.remove,
+  // v1.0.8 §5.3：回收站（仅主人家）
+  'recycle.list': recycle.list,
+  'recycle.restore': recycle.restore,
+  'recycle.purge': recycle.purge,
+  'recycle.clear': recycle.clear,
   'profile.get': profile.get,
   'profile.save': profile.save,
 };

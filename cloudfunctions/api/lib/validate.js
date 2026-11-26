@@ -26,6 +26,9 @@ const LIMITS = {
   MENU_TITLE_MAX: 30,
   MENU_DATE_MAX: 20,
   MENU_HEADCOUNT_MAX: 99,
+  // v1.0.8 §5（软删除 / 回收站）：删除理由 ≤100 字；回收站批量操作一次最多 100 个 id
+  DELETE_REASON_MAX: 100,
+  RECYCLE_IDS_MAX: 100,
 };
 
 /**

@@ -7,7 +7,9 @@
     "pages/review/review",
     "pages/mine/mine",
     "pages/crop/crop",
-    "pages/menu/menu"
+    "pages/menu/menu",
+    "pages/recycle/recycle",
+    "pages/mydeletes/mydeletes"
   ],
   "window": {
     "backgroundTextStyle": "dark",

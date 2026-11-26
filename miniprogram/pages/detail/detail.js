@@ -45,6 +45,11 @@ var EDIT_STATUS_TEXT = { pending: '待审核', approved: '已通过', rejected: 
 
 var NO_MENU_LABEL = '还没可以点菜哦~';
 
+// 创建者删除必填理由（SPEC-v1.0.8 §5.1 deleteReason）≤100 字
+var DELETE_REASON_MAX = 100;
+// 删除成功到返回上一页之间的停留：让 toast 看得见
+var LEAVE_DELAY_MS = 700;
+
 /* ---------- 纯函数小工具（不依赖 wx） ---------- */
 
 function toast(title) {
@@ -66,6 +71,22 @@ function myOpenid() {
     return (app && app.globalData && app.globalData.openid) || '';
   } catch (err) {
     return '';
+  }
+}
+
+// 主人家判定：优先用 app.isOwner()，取不到再退回 globalData.role
+function isAppOwner() {
+  try {
+    var app = getApp();
+    if (!app) {
+      return false;
+    }
+    if (typeof app.isOwner === 'function') {
+      return !!app.isOwner();
+    }
+    return !!(app.globalData && app.globalData.role === 'owner');
+  } catch (err) {
+    return false;
   }
 }
 
@@ -241,7 +262,23 @@ Page({
     itemMax: EDIT_ITEM_MAX,
     itemLenMax: EDIT_ITEM_LEN_MAX,
     nameMax: NAME_MAX,
-    storyMax: STORY_MAX
+    storyMax: STORY_MAX,
+
+    /* ---------- 上下架 / 删除（SPEC-v1.0.8 §5） ---------- */
+    // listed 为 false 表示已下架；按钮文案与可见性都按它算
+    listed: true,
+    listedText: '下架',
+    listedBusy: false,
+    // 下架 / 重新上架：创建者或主人家可见（§5.2）
+    canManageListed: false,
+    // 删除：创建者或主人家可见；主人家直接删，创建者必须填理由进审核队列
+    canDelete: false,
+    ownerDelete: false,
+    deleteOpen: false,
+    deleteReason: '',
+    deleteReasonLen: 0,
+    deleteReasonMax: DELETE_REASON_MAX,
+    deleting: false
   },
 
   /* ---------- 生命周期 ---------- */
@@ -250,6 +287,7 @@ Page({
     this.orderedTimer = null;
     this.likeTipTimer = null;
     this.wantTipTimer = null;
+    this.backTimer = null;
     this.shownOnce = false;
     var id = (options && options.id) || '';
     this.setData({ id: id });
@@ -282,6 +320,10 @@ Page({
     if (this.wantTipTimer) {
       clearTimeout(this.wantTipTimer);
       this.wantTipTimer = null;
+    }
+    if (this.backTimer) {
+      clearTimeout(this.backTimer);
+      this.backTimer = null;
     }
   },
 
@@ -324,6 +366,16 @@ Page({
     var likePreview = likes.slice(0, AVATAR_PREVIEW_MAX);
     var wantPreview = wants.slice(0, AVATAR_PREVIEW_MAX);
 
+    // 操作权限（SPEC-v1.0.8 §5.2）：创建者 = dish.ownerOpenid，主人家 = app.isOwner()
+    var openid = myOpenid();
+    var creatorOpenid =
+      typeof dish.ownerOpenid === 'string' && dish.ownerOpenid
+        ? dish.ownerOpenid
+        : (typeof submitter.openid === 'string' ? submitter.openid : '');
+    var isOwner = isAppOwner();
+    var isCreator = !!creatorOpenid && !!openid && creatorOpenid === openid;
+    var listed = dish.listed !== false;
+
     this.setData({
       dish: dish,
       tagList: tagList,
@@ -362,7 +414,15 @@ Page({
       wantTip: '',
 
       loading: false,
-      notFound: false
+      notFound: false,
+
+      listed: listed,
+      listedText: listed ? '下架' : '重新上架',
+      listedBusy: false,
+      canManageListed: isOwner || isCreator,
+      canDelete: isOwner || isCreator,
+      // 主人家删除走直接删除；只有「创建者但非主人家」才需要填理由
+      ownerDelete: isOwner
     });
     wx.setNavigationBarTitle({ title: dish.name || '菜品详情' });
   },
@@ -769,6 +829,8 @@ Page({
       self.setData({ editSubmitting: false, editOpen: false });
       if (status === 'approved') {
         wx.showToast({ title: '已更新', icon: 'success', duration: 1600 });
+        // 主人家的修改直接生效：菜名/材料/做法都变了，菜谱卡片还是旧的，必须让上一页重拉
+        self.markListStale();
         self.fetchDish(self.data.id);
         if (self.data.historyOpen) {
           self.fetchHistory();
@@ -783,11 +845,197 @@ Page({
     });
   },
 
+  /* ---------- 上下架 / 删除（SPEC-v1.0.8 §5） ---------- */
+
+  // 下架 / 删除会改到菜谱页的列表内容，但菜谱页「从详情页返回不刷新」是刻意设计
+  // （onHide 时 skipNextRefresh 已把 needRefresh 压成 false），所以这里显式把上一页标记为需要刷新
+  markListStale: function () {
+    try {
+      var pages = typeof getCurrentPages === 'function' ? getCurrentPages() : [];
+      if (!Array.isArray(pages) || pages.length < 2) {
+        return;
+      }
+      var prev = pages[pages.length - 2];
+      if (prev && typeof prev.route === 'string' && prev.route.indexOf('pages/index/index') >= 0) {
+        prev.needRefresh = true;
+      }
+    } catch (err) {
+      console.warn('[detail] 标记菜谱列表需要刷新失败', err);
+    }
+  },
+
+  // 下架 / 重新上架：创建者或主人家直接生效，不走审核（§5.2）
+  onToggleListed: function () {
+    var self = this;
+    var dish = this.data.dish;
+    if (!dish || !dish._id || this.data.listedBusy) {
+      return;
+    }
+    // 已下架 -> 重新上架（listed:true）；已上架 -> 下架（listed:false）
+    var next = this.data.listed === false;
+    var task;
+    this.setData({ listedBusy: true });
+    try {
+      task = api.dishSetListed(dish._id, next);
+    } catch (err) {
+      console.error('[detail] 上下架调用异常', err);
+      this.setData({ listedBusy: false });
+      return;
+    }
+    task.then(function () {
+      self.setData({
+        listedBusy: false,
+        listed: next,
+        listedText: next ? '下架' : '重新上架'
+      });
+      toast(next ? '已重新上架' : '已下架');
+      // 上架状态变了，回到菜谱页时那两列要重拉
+      self.markListStale();
+      // 再取一次，让页面状态与服务端一致（下架的菜详情仍然可看）
+      self.fetchDish(self.data.id, true);
+    }, function (err) {
+      // api.js 已 toast；这里只恢复按钮，不假装成功
+      console.error('[detail] 上下架失败', err);
+      self.setData({ listedBusy: false });
+    });
+  },
+
+  // 删除入口：主人家 -> 二次确认后直接删；创建者 -> 页内浮层填理由；其他人看不到这个按钮
+  onDeleteTap: function () {
+    var dish = this.data.dish;
+    if (!dish || !dish._id || this.data.deleting) {
+      return;
+    }
+    if (this.data.ownerDelete) {
+      this.confirmOwnerDelete();
+      return;
+    }
+    this.setData({
+      deleteOpen: true,
+      deleting: false,
+      deleteReason: '',
+      deleteReasonLen: 0
+    });
+  },
+
+  // 主人家删除：二次确认，理由可空
+  confirmOwnerDelete: function () {
+    var self = this;
+    if (this.data.deleting) {
+      return;
+    }
+    wx.showModal({
+      title: '删除这道菜',
+      content: '删除后会在回收站保留 30 天，可以恢复',
+      confirmText: '删除',
+      cancelText: '再想想',
+      success: function (res) {
+        if (res && res.confirm) {
+          self.doDelete('');
+        }
+      },
+      fail: function (err) {
+        console.warn('[detail] 删除确认弹窗异常', err);
+      }
+    });
+  },
+
+  // 主人家（reason 空）与创建者（reason 必填）共用；按 dish.remove 的出参决定提示
+  doDelete: function (reason) {
+    var self = this;
+    var dish = this.data.dish;
+    if (!dish || !dish._id || this.data.deleting) {
+      return;
+    }
+    var task;
+    this.setData({ deleting: true });
+    try {
+      task = api.dishRemove(dish._id, reason || '');
+    } catch (err) {
+      console.error('[detail] 删除调用异常', err);
+      this.setData({ deleting: false });
+      return;
+    }
+    task.then(function (result) {
+      var data = result || {};
+      self.setData({ deleting: false, deleteOpen: false });
+      // 菜品已不可见，菜谱页那两列必须重拉，否则返回后还能看到这道菜
+      self.markListStale();
+      // 创建者删除只是写了一条 type='delete' 的提案，还没进回收站
+      if (data.status === 'pending') {
+        self.leaveAfterDelete('删除申请已提交，等主人家审核');
+        return;
+      }
+      self.leaveAfterDelete('已移入回收站');
+    }, function (err) {
+      // api.js 已 toast
+      console.error('[detail] 删除失败', err);
+      self.setData({ deleting: false });
+    });
+  },
+
+  // 提示后回上一页：toast 要留一点时间，不能被立刻跳转吞掉
+  leaveAfterDelete: function (message) {
+    var self = this;
+    toast(message);
+    if (this.backTimer) {
+      clearTimeout(this.backTimer);
+    }
+    this.backTimer = setTimeout(function () {
+      self.backTimer = null;
+      wx.navigateBack({
+        delta: 1,
+        fail: function (err) {
+          console.error('[detail] 返回上一页失败', err);
+          wx.switchTab({
+            url: '/pages/index/index',
+            fail: function (err2) {
+              console.error('[detail] 回到菜谱页失败', err2);
+            }
+          });
+        }
+      });
+    }, LEAVE_DELAY_MS);
+  },
+
+  onDeleteReasonInput: function (event) {
+    var value = (event && event.detail ? event.detail.value : '') || '';
+    this.setData({ deleteReason: value, deleteReasonLen: value.length });
+  },
+
+  onCloseDelete: function () {
+    if (this.data.deleting) {
+      return;
+    }
+    this.setData({ deleteOpen: false });
+  },
+
+  onSubmitDelete: function () {
+    if (this.data.deleting) {
+      return;
+    }
+    var reason = String(this.data.deleteReason || '').trim();
+    if (!reason) {
+      toast('写一句删除理由');
+      return;
+    }
+    if (reason.length > DELETE_REASON_MAX) {
+      toast('理由最多 100 个字');
+      return;
+    }
+    this.doDelete(reason);
+  },
+
   /* ---------- 点菜流程 ---------- */
 
   onOrderTap: function () {
     var self = this;
     var dish = this.data.dish;
+    // 已下架的菜不能点（v1.0.8 §5.1）：后端 order.create 也会拒，这里先给出人话提示
+    if (this.data.listed === false) {
+      toast('这道菜已经下架了');
+      return;
+    }
     // 没有进行中的点菜单：按钮已置灰，这里只提示，绝不进入下单链路
     if (!this.data.menuReady) {
       toast(this.data.noMenuLabel);

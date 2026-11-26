@@ -1,0 +1,66 @@
+<view class="page mydeletes-page">
+  <view class="page-head">
+    <view class="page-title">我的申请</view>
+    <view class="page-sub">删菜、改菜提交过的申请都在这儿，审核结果也看得到</view>
+  </view>
+
+  <!-- 分类切换：三个 chip 各带数量，默认停在「删除申请」 -->
+  <view class="mode-bar">
+    <view
+      wx:for="{{chips}}"
+      wx:key="key"
+      class="mode-chip tap {{mode === item.key ? 'is-on' : ''}}"
+      hover-class="tap-shrink"
+      hover-stay-time="60"
+      data-key="{{item.key}}"
+      bindtap="onSwitchMode"
+    >
+      <text class="mode-text">{{item.label}}</text>
+      <text class="mode-num">{{item.countText}}</text>
+    </view>
+  </view>
+
+  <!-- 骨架 -->
+  <block wx:if="{{skeleton}}">
+    <view class="card paper">
+      <view class="skeleton skeleton-line skeleton-title"></view>
+      <view class="skeleton skeleton-line skeleton-sub"></view>
+      <view class="skeleton skeleton-line skeleton-sub"></view>
+    </view>
+    <view class="card paper tilt-r">
+      <view class="skeleton skeleton-line skeleton-title"></view>
+      <view class="skeleton skeleton-line skeleton-sub"></view>
+      <view class="skeleton skeleton-line skeleton-sub"></view>
+    </view>
+  </block>
+
+  <!-- 列表 -->
+  <block wx:elif="{{list.length}}">
+    <view
+      wx:for="{{list}}"
+      wx:key="id"
+      class="card paper {{index % 2 === 0 ? 'tilt-l' : 'tilt-r'}}"
+      bindtap="onTapItem"
+    >
+      <view class="card-top">
+        <text class="dish-name">{{item.dishName}}</text>
+        <text class="type-badge type-{{item.type}}">{{item.typeText}}</text>
+      </view>
+
+      <view class="card-meta">
+        <text class="status-badge status-{{item.status}}">{{item.statusText}}</text>
+        <text class="dot">·</text>
+        <text class="time">{{item.timeText}} 提交</text>
+      </view>
+
+      <view wx:if="{{item.reason}}" class="reason">理由：{{item.reason}}</view>
+      <view wx:if="{{item.reviewedText}}" class="reviewed">{{item.reviewedText}}</view>
+    </view>
+
+    <view wx:if="{{loadingMore}}" class="foot-hint">正在加载更多…</view>
+    <view wx:elif="{{!hasMore}}" class="foot-hint">没有更多了</view>
+  </block>
+
+  <!-- 空状态：文案跟着当前分类走 -->
+  <empty-state wx:elif="{{!loading}}" text="{{emptyText}}" hint="{{emptyHint}}" />
+</view>

@@ -37,6 +37,11 @@ function toast(title) {
   wx.showToast({ title: title, icon: 'none', duration: 2000 });
 }
 
+// 两位补零：不用 padStart，老基础库上没有
+function pad2(n) {
+  return n < 10 ? '0' + n : '' + n;
+}
+
 // 结束确认的状态位集中在这里清，免得上一轮的结果漏到下一轮
 function withClearReview(patch) {
   var out = patch || {};
@@ -46,6 +51,7 @@ function withClearReview(patch) {
   out.reviewAtText = '';
   out.decisions = {};
   out.reviewSubmitting = false;
+  out.reviewDeleting = false;
   out.reviewEmpty = false;
   return out;
 }
@@ -332,9 +338,11 @@ Page({
     reviewAtText: '',
     decisions: {},
     reviewSubmitting: false,
+    reviewDeleting: false,
 
-    // 开始点菜浮层
+    // 开始点菜浮层（start = 开新一轮，edit = 改这一轮的前置信息，同一个浮层两种模式）
     sheetShow: false,
+    sheetMode: 'start',
     submitting: false,
     mealTypes: MEAL_TYPES,
     headcounts: HEADCOUNTS,
@@ -354,7 +362,8 @@ Page({
     historyPage: 0,
     historyHasMore: true,
     historyLoading: false,
-    historyTotal: 0
+    historyTotal: 0,
+    historyDeleting: false
   },
 
   onLoad: function () {
@@ -516,6 +525,7 @@ Page({
       reviewMenu: null,
       decisions: {},
       reviewSubmitting: false,
+      reviewDeleting: false,
       dishes: [],
       viewMenu: null,
       loading: false
@@ -717,14 +727,46 @@ Page({
 
   onOpenStart: function () {
     this.resetForm();
-    this.setData({ sheetShow: true });
+    this.setData({ sheetMode: 'start', sheetShow: true });
+  },
+
+  /** 改这一轮的前置信息：复用同一个浮层，预填当前值（§5.3 menu.update） */
+  onOpenEdit: function () {
+    var menu = this.data.menu;
+    if (!menu || !menu.id) {
+      toast('这一轮已经不在了');
+      return;
+    }
+    var headcount = Number(menu.headcount);
+    if (!isFinite(headcount) || headcount < 0) {
+      headcount = 0;
+    }
+    headcount = Math.min(20, Math.floor(headcount));
+    var endTime = '';
+    if (menu.endsAt) {
+      var end = new Date(menu.endsAt);
+      endTime = pad2(end.getHours()) + ':' + pad2(end.getMinutes());
+    }
+    this.setData({
+      sheetMode: 'edit',
+      sheetShow: true,
+      headcountIndex: headcount,
+      form: {
+        title: menu.title || '',
+        dateText: menu.dateText || todayText(),
+        mealType: MEAL_TYPES.indexOf(menu.mealType) === -1 ? guessMealType() : menu.mealType,
+        headcount: headcount,
+        autoEnd: !!menu.endsAt,
+        endTime: endTime
+      }
+    });
   },
 
   onCloseSheet: function () {
     if (this.data.submitting) {
       return;
     }
-    this.setData({ sheetShow: false });
+    this.setData({ sheetShow: false, sheetMode: 'start' });
   },
 
   onSheetMaskTap: function () {
@@ -773,11 +815,12 @@ Page({
     this.setData({ 'form.endTime': value });
   },
 
-  onSubmitStart: function () {
-    var self = this;
-    if (this.data.submitting) {
-      return;
-    }
+  /**
+   * 浮层表单 -> 可提交的值。开始与修改共用同一套校验。
+   * endsAt：开关关着就是 null（开始 = 不预设；修改 = 取消预设结束时间）。
+   * @returns {object|null} null = 已经 toast 过，调用方直接返回
+   */
+  collectForm: function () {
     var form = this.data.form || {};
 
     var title = String(form.title || '').trim();
@@ -799,53 +842,101 @@ Page({
     if (form.autoEnd) {
       if (!form.endTime) {
         toast('先选一个结束时刻');
-        return;
+        return null;
       }
       endsAt = composeEndsAt(dateText, form.endTime);
       if (!endsAt) {
         toast('结束时间没读懂，重选一次');
-        return;
+        return null;
       }
       if (endsAt <= Date.now()) {
         toast('结束时间要晚于现在');
-        return;
+        return null;
       }
     }
 
+    return {
+      title: title,
+      dateText: dateText,
+      mealType: mealType,
+      headcount: headcount,
+      endsAt: endsAt
+    };
+  },
+
+  onSubmitStart: function () {
+    var self = this;
+    if (this.data.submitting) {
+      return;
+    }
+    var payload = this.collectForm();
+    if (!payload) {
+      return;
+    }
+
     this.setData({ submitting: true });
-    api
-      .menuStart({
-        title: title,
-        dateText: dateText,
-        mealType: mealType,
-        headcount: headcount,
-        endsAt: endsAt
-      })
-      .then(
-        function onSuccess() {
-          if (self.unloaded) {
-            return;
-          }
-          self.setData(
-            withClearReview({
-              submitting: false,
-              sheetShow: false,
-              readonly: false,
-              viewMenu: null,
-              dishes: []
-            })
-          );
-          toast('开始点菜啦');
-          self.refresh();
-        },
-        function onFail(err) {
-          // api.js 已 toast，这里只收起 loading
-          console.error('[menu] 开始点菜失败', err);
-          if (!self.unloaded) {
-            self.setData({ submitting: false });
-          }
+
+    // 同一个浮层两种模式：edit 走 menu.update，start 走 menu.start
+    if (this.data.sheetMode === 'edit') {
+      this.submitEdit(payload);
+      return;
+    }
+
+    api.menuStart(payload).then(
+      function onSuccess() {
+        if (self.unloaded) {
+          return;
         }
-      );
+        self.setData(
+          withClearReview({
+            submitting: false,
+            sheetShow: false,
+            sheetMode: 'start',
+            readonly: false,
+            viewMenu: null,
+            dishes: []
+          })
+        );
+        toast('开始点菜啦');
+        self.refresh();
+      },
+      function onFail(err) {
+        // api.js 已 toast，这里只收起 loading
+        console.error('[menu] 开始点菜失败', err);
+        if (!self.unloaded) {
+          self.setData({ submitting: false });
+        }
+      }
+    );
+  },
+
+  /** 保存修改（§5.3 menu.update）：成功 toast + 关浮层 + 刷新详情；失败只恢复按钮 */
+  submitEdit: function (payload) {
+    var self = this;
+    var menu = this.data.menu;
+    if (!menu || !menu.id) {
+      this.setData({ submitting: false });
+      toast('这一轮已经不在了');
+      return;
+    }
+
+    api.menuUpdate(menu.id, payload).then(
+      function onSuccess() {
+        if (self.unloaded) {
+          return;
+        }
+        self.setData({ submitting: false, sheetShow: false, sheetMode: 'start' });
+        toast('改好了');
+        self.refresh();
+      },
+      function onFail(err) {
+        // api.js 已经 toast 过，这里只恢复按钮可用态
+        console.error('[menu] 修改点菜信息失败', err);
+        if (!self.unloaded) {
+          self.setData({ submitting: false });
+        }
+      }
+    );
   },
 
   /* ---------- 结束点菜 ---------- */
@@ -966,6 +1057,50 @@ Page({
               return;
             }
             self.setData({ reviewSubmitting: false });
+          }
+        );
+      }
+    });
+  },
+
+  /* ---------- 删除这一轮（§5.3 menu.delete，软删除进回收站） ---------- */
+
+  onDeleteReviewMenu: function () {
+    var self = this;
+    if (this.data.viewMode !== 'review' || this.data.reviewDeleting) {
+      return;
+    }
+    var menu = this.data.reviewMenu || this.data.viewMenu;
+    if (!menu || !menu.id) {
+      toast('没找到要删的那一轮');
+      return;
+    }
+    wx.showModal({
+      title: '删除这一轮？',
+      content: '这一轮和它的点菜记录会一起进回收站，30 天内可以恢复',
+      confirmText: '删除',
+      cancelText: '再想想',
+      success: function (res) {
+        if (!res || !res.confirm) {
+          return;
+        }
+        self.setData({ reviewDeleting: true });
+        api.menuDelete(menu.id).then(
+          function onSuccess() {
+            if (self.unloaded) {
+              return;
+            }
+            self.setData({ reviewDeleting: false });
+            toast('已移入回收站');
+            // 退回普通视图，顺便重算「待确认」条数
+            self.backToNormalView();
+          },
+          function onFail(err) {
+            // api.js 已经 toast 过，这里只恢复按钮可用态
+            console.error('[menu] 删除这一轮失败', err);
+            if (!self.unloaded) {
+              self.setData({ reviewDeleting: false });
+            }
           }
         );
       }
@@ -1142,6 +1277,72 @@ Page({
 
   onMoreHistory: function () {
     this.fetchHistory(false);
+  },
+
+  /**
+   * 历史浮层里删掉一轮（§5.3 menu.delete）。
+   * 成功后只把这一条从 historyList 里摘掉、total -1，不整页重载；
+   * 删的正好是当前正在看的那一轮 -> 退回 normal 视图。
+   */
+  onDeleteHistory: function (event) {
+    var self = this;
+    var dataset = (event && event.currentTarget && event.currentTarget.dataset) || {};
+    var id = typeof dataset.id === 'string' ? dataset.id : '';
+    if (!id || this.data.historyDeleting) {
+      return;
+    }
+    wx.showModal({
+      title: '删除这一轮？',
+      content: '这一轮和它的点菜记录会一起进回收站，30 天内可以恢复',
+      confirmText: '删除',
+      cancelText: '再想想',
+      success: function (res) {
+        if (!res || !res.confirm) {
+          return;
+        }
+        self.setData({ historyDeleting: true });
+        api.menuDelete(id).then(
+          function onSuccess() {
+            if (self.unloaded) {
+              return;
+            }
+            var list = self.data.historyList || [];
+            var rows = [];
+            var i;
+            for (i = 0; i < list.length; i++) {
+              if (list[i] && list[i].id !== id) {
+                rows.push(list[i]);
+              }
+            }
+            var total = Number(self.data.historyTotal) || 0;
+            var viewing = !!(self.data.viewMenu && self.data.viewMenu.id === id);
+            var isCurrent = !!(self.data.menu && self.data.menu.id === id);
+            self.setData({
+              historyList: rows,
+              historyTotal: Math.max(0, total - 1),
+              historyDeleting: false,
+              historyShow: viewing || isCurrent ? false : self.data.historyShow
+            });
+            toast('已移入回收站');
+            if (viewing || isCurrent) {
+              // 正在看的那一轮（或就是当前这一轮）没了：退回 normal 视图，
+              // readonly 一起清掉，再让 refresh 决定要不要重新拉当前这一轮
+              self.setData(withClearReview({ readonly: false, viewMenu: null, dishes: [] }));
+              self.refresh();
+            } else {
+              self.loadPendingReviews();
+            }
+          },
+          function onFail(err) {
+            // api.js 已经 toast 过，这里只恢复按钮可用态
+            console.error('[menu] 删除历史菜单失败', err);
+            if (!self.unloaded) {
+              self.setData({ historyDeleting: false });
+            }
+          }
+        );
+      }
+    });
   },
 
   fetchHistory: function (reset) {

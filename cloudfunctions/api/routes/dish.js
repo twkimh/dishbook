@@ -3,7 +3,11 @@
  *   list / get / create / update / remove / mine / reviewList / review（v1.0.7 存量）
  *   edit / editList / editReview / editHistory / like / unlike / want / unwant（SPEC-v1.0.8 §2.1）
  *   orderers（SPEC-v1.0.8 §4.3）
- * 契约见 SPEC.md §4 + SPEC-v1.0.8 §2/§3/§4，数据模型见 SPEC.md §3 + SPEC-v1.0.8 §1。
+ *   setListed（SPEC-v1.0.8 §5：上下架）
+ * 契约见 SPEC.md §4 + SPEC-v1.0.8 §2/§3/§4/§5，数据模型见 SPEC.md §3 + SPEC-v1.0.8 §1/§5.1。
+ *
+ * v1.0.8 §5 起 remove 不再物理删除：主人家直接软删除，创建者本人删除则进审核队列。
+ * 所有读取类 action 都在 where 里排除 deletedAt 非 null 的记录（分页才不会错）。
  */
 
 const { db, _, dishes, dishEdits, orders, resolveContext, now } = require('../lib/db');
@@ -62,6 +66,54 @@ const SOURCE = {
   GUEST: 'guest',
 };
 
+/* ------------------------------------------------- v1.0.8 §5：软删除 / 上下架 */
+
+/** 修改提案类型（SPEC-v1.0.8 §5.1）：缺省按 'edit' 处理，'delete' 表示删除申请。 */
+const EDIT_TYPE_EDIT = 'edit';
+const EDIT_TYPE_DELETE = 'delete';
+
+/** 删除前状态（SPEC-v1.0.8 §5.1）：恢复时据此还原 listed。 */
+const DELETED_FROM_LISTED = 'listed';
+const DELETED_FROM_DELISTED = 'delisted';
+
+/**
+ * 「未删除」查询条件。
+ * 老数据没有 deletedAt 字段，必须当未删除 —— 所以既要 null，也要「字段不存在」。
+ * 两条并列写（而不是依赖 { deletedAt: null } 顺带命中缺失字段的语义），
+ * 避免不同版本的数据库实现对缺失字段处理不一致，把存量菜品整批从列表里筛掉。
+ */
+function notDeleted() {
+  return _.or([{ deletedAt: null }, { deletedAt: _.exists(false) }]);
+}
+
+/** 软删除判定：deletedAt 非 null / undefined 即已删除。 */
+function isDeleted(doc) {
+  if (!doc || typeof doc !== 'object') return false;
+  return doc.deletedAt !== null && doc.deletedAt !== undefined;
+}
+
+/** 恢复时还原上架状态：删除前是 'delisted' 就保持下架，其它（含字段缺失）恢复上架。 */
+function listedFromDeletedFrom(doc) {
+  if (doc && doc.deletedFrom === DELETED_FROM_DELISTED) return false;
+  return true;
+}
+
+/**
+ * 软删除一道菜（dish.remove 的主人家分支 + 删除提案通过，共用同一段写库逻辑）。
+ * 只写删除相关字段与 updatedAt，其余字段原样保留，恢复时才还原得出上下架状态。
+ */
+async function softDeleteDish(id, dish, openid, reason, ts) {
+  const patch = {
+    deletedAt: ts,
+    deletedBy: openid,
+    deleteReason: typeof reason === 'string' ? reason : '',
+    deletedFrom: dish && dish.listed === false ? DELETED_FROM_DELISTED : DELETED_FROM_LISTED,
+    updatedAt: ts,
+  };
+  await dishes().doc(id).update({ data: patch });
+  return patch;
+}
+
 /** 按 id 取菜品；文档不存在时返回 null（不把 SDK 的抛错形态漏给上层）。 */
 async function findDish(id) {
   try {
@@ -80,6 +132,8 @@ function escapeRegExp(text) {
 /** pending / rejected 的可见性：仅主人家或创建者本人，其他人一律 NOT_FOUND（约束 10）。 */
 function canSeeDish(dish, openid, isOwner) {
   if (!dish) return false;
+  // 已进回收站的菜对所有读取路径都不可见（SPEC-v1.0.8 §5.3 规则 6）
+  if (isDeleted(dish)) return false;
   if (dish.status === STATUS.APPROVED) return true;
   if (isOwner) return true;
   return dish.ownerOpenid === openid;
@@ -171,6 +225,8 @@ function shapeDish(dish) {
   out.ingredients = Array.isArray(dish.ingredients) ? dish.ingredients : [];
   out.seasonings = Array.isArray(dish.seasonings) ? dish.seasonings : [];
   out.methods = Array.isArray(dish.methods) ? dish.methods : [];
+  // v1.0.8 §5：老数据没有 listed 字段，出参统一当「上架」，前端不用判 undefined
+  out.listed = dish.listed !== false;
   return out;
 }
 
@@ -185,20 +241,32 @@ async function withReadFields(items) {
   return shapeDish(attached);
 }
 
+/**
+ * 上架状态条件（SPEC-v1.0.8 §5.3 规则 7）：
+ *  - listed 缺省 / true：只返回上架的（老数据没有该字段也算上架）
+ *  - listed === false：只返回已下架的（所有人可见）
+ * 下架列表同样只返回 approved 的，避免把待审核的菜暴露出来。
+ */
+function listedCondition(listed) {
+  if (listed === false) return { listed: false };
+  return _.or([{ listed: true }, { listed: _.exists(false) }]);
+}
+
 async function list(ctx) {
   const payload = ctx.payload || {};
   const paging = pickPaging(payload);
   const keyword = pickText(payload.keyword, { field: 'keyword', label: '搜索词', max: LIMITS.KEYWORD_MAX });
   const tag = pickText(payload.tag, { field: 'tag', label: '标签', max: LIMITS.TAG_MAX_LEN });
 
-  const parts = [];
+  // 删除 / 上架两个过滤条件一律进 where，不取出后再筛 —— 否则 total 与分页会错
+  const parts = [{ status: STATUS.APPROVED }, notDeleted(), listedCondition(payload.listed)];
   if (keyword) {
     const reg = db.RegExp({ regexp: escapeRegExp(keyword), options: 'i' });
     parts.push(_.or([{ name: reg }, { story: reg }, { tags: reg }]));
   }
   if (tag) parts.push({ tags: tag });
 
-  const where = parts.length ? _.and([{ status: STATUS.APPROVED }].concat(parts)) : { status: STATUS.APPROVED };
+  const where = _.and(parts);
 
   const countRes = await dishes().where(where).count();
   const total = countRes && typeof countRes.total === 'number' ? countRes.total : 0;
@@ -218,6 +286,8 @@ async function get(ctx) {
   const id = pickId(ctx.payload && ctx.payload.id, '菜品 id');
   const dish = await findDish(id);
   if (!dish) notFound('菜品不存在或已被删除');
+  // 已进回收站的菜按不存在处理（SPEC-v1.0.8 §5.3 规则 6）
+  if (isDeleted(dish)) notFound('菜品不存在或已被删除');
 
   const resolved = await resolveContext(ctx.openid);
   assertVisible(dish, ctx.openid, resolved.isOwner);
@@ -263,6 +333,8 @@ async function create(ctx) {
       avatar: avatar,
     },
     cookedCount: 0,
+    // v1.0.8 §5.1：新建的菜一律上架（老数据没有这个字段，读取时按上架处理）
+    listed: true,
     createdAt: ts,
     updatedAt: ts,
     reviewedAt: isOwner ? ts : null,
@@ -277,6 +349,7 @@ async function update(ctx) {
   const id = pickId(payload.id, '菜品 id');
   const dish = await findDish(id);
   if (!dish) notFound('菜品不存在或已被删除');
+  if (isDeleted(dish)) notFound('菜品不存在或已被删除');
   if (dish.ownerOpenid !== ctx.openid) unauthorized('只有菜品创建者可以修改');
   const resolved = await resolveContext(ctx.openid);
 
@@ -325,19 +398,64 @@ async function update(ctx) {
   return { id: id, status: nextStatus };
 }
 
+/**
+ * dish.remove —— SPEC-v1.0.8 §5.2 / §5.3 规则 1：**不再物理删除**。
+ *  - 主人家（含「创建者本人就是主人家」）：直接软删除进回收站，理由可空
+ *    -> { id, deleted: true }
+ *  - 创建者本人（非主人家）：理由必填，写一条 type='delete' 的待审提案，dishes 不动
+ *    -> { id: 提案 id, status: 'pending' }
+ *  - 其他人：UNAUTHORIZED
+ */
 async function remove(ctx) {
-  const id = pickId(ctx.payload && ctx.payload.id, '菜品 id');
+  const payload = ctx.payload || {};
+  const id = pickId(payload.id, '菜品 id');
   const dish = await findDish(id);
   if (!dish) notFound('菜品不存在或已被删除');
-  if (dish.ownerOpenid !== ctx.openid) unauthorized('只有菜品创建者可以删除');
+  if (isDeleted(dish)) invalid('这道菜已经删除了');
 
-  await dishes().doc(id).remove();
-  return {};
+  const resolved = await resolveContext(ctx.openid);
+  const ts = now();
+  // 理由 ≤100 字；主人家可以不填，创建者必填（下面分别判定）
+  const reason = pickText(payload.reason, {
+    field: 'reason',
+    label: '删除理由',
+    max: LIMITS.DELETE_REASON_MAX,
+  });
+
+  // 主人家分支：直接进回收站。创建者恰好是主人家时也走这里，不做二次审核
+  if (resolved.isOwner) {
+    await softDeleteDish(id, dish, ctx.openid, reason, ts);
+    return { id: id, deleted: true };
+  }
+
+  if (typeof dish.ownerOpenid !== 'string' || dish.ownerOpenid !== ctx.openid) {
+    unauthorized('只有创建者或主人家可以删除');
+  }
+  if (!reason) invalid('删除需要填写理由');
+
+  const profile = pickProfile(payload);
+  const person = personSnapshot(ctx.openid, profile, ts);
+  delete person.at;
+  const proposal = {
+    dishId: id,
+    dishName: typeof dish.name === 'string' ? dish.name : '',
+    snapshot: snapshotOfDish(dish),
+    submitter: person,
+    status: STATUS.PENDING,
+    // v1.0.8 §5.1：提案类型 + 删除理由，editReview 据此走软删除分支
+    type: EDIT_TYPE_DELETE,
+    reason: reason,
+    createdAt: ts,
+    reviewedAt: null,
+  };
+  const res = await dishEdits().add({ data: proposal });
+  return { id: res && res._id ? res._id : '', status: STATUS.PENDING };
 }
 
 async function mine(ctx) {
   const paging = pickPaging(ctx.payload);
-  const where = { ownerOpenid: ctx.openid };
+  // 已删除的不出现在「我提交的」里（SPEC-v1.0.8 §5.3 规则 6）
+  const where = _.and([{ ownerOpenid: ctx.openid }, notDeleted()]);
 
   const countRes = await dishes().where(where).count();
   const total = countRes && typeof countRes.total === 'number' ? countRes.total : 0;
@@ -357,7 +475,7 @@ async function reviewList(ctx) {
   if (!resolved.isOwner) unauthorized('只有主人家可以查看待审核列表');
 
   const paging = pickPaging(ctx.payload);
-  const where = { status: STATUS.PENDING };
+  const where = _.and([{ status: STATUS.PENDING }, notDeleted()]);
 
   const countRes = await dishes().where(where).count();
   const total = countRes && typeof countRes.total === 'number' ? countRes.total : 0;
@@ -382,6 +500,8 @@ async function review(ctx) {
 
   const dish = await findDish(id);
   if (!dish) notFound('菜品不存在或已被删除');
+  // 已进回收站的菜不再参与审核
+  if (isDeleted(dish)) notFound('菜品不存在或已被删除');
   if (dish.status !== STATUS.PENDING) invalid('只有待审核的菜品可以审核');
 
   const status = payload.accept ? STATUS.APPROVED : STATUS.REJECTED;
@@ -420,6 +540,17 @@ function buildSnapshot(fields) {
     methods: fields.methods,
     tags: fields.tags,
   };
+}
+
+/** 按库里的菜生成「当前可编辑字段」快照（删除提案用：记录申请删除时这道菜的样子）。 */
+function snapshotOfDish(dish) {
+  const out = {};
+  if (!dish || typeof dish !== 'object') return out;
+  for (let i = 0; i < EDITABLE_FIELDS.length; i += 1) {
+    const key = EDITABLE_FIELDS[i];
+    if (dish[key] !== undefined) out[key] = dish[key];
+  }
+  return out;
 }
 
 /**
@@ -463,6 +594,8 @@ async function edit(ctx) {
     snapshot: snapshot,
     submitter: person,
     status: STATUS.PENDING,
+    // v1.0.8 §5.1：type 缺省视同 'edit'，这里显式写出来，审核端不用猜
+    type: EDIT_TYPE_EDIT,
     createdAt: ts,
     reviewedAt: null,
   };
@@ -493,8 +626,12 @@ async function editList(ctx) {
 
 /**
  * dish.editReview —— 主人家审核一条修改提案。
- * 通过：snapshot 覆盖 dishes 可编辑字段 + 提案人并入 contributors + 提案 approved。
- * 驳回：只改提案，不动 dishes。
+ * type 缺省 / 'edit'：
+ *   通过 -> snapshot 覆盖 dishes 可编辑字段 + 提案人并入 contributors + 提案 approved
+ *   驳回 -> 只改提案，不动 dishes
+ * type='delete'（SPEC-v1.0.8 §5.3 规则 2）：
+ *   通过 -> 把菜品软删除（deletedFrom 取当前 listed 状态），提案 approved
+ *   驳回 -> 只改提案，菜品不动
  * 已 approved / rejected 的提案再次审核 -> INVALID。
  */
 async function editReview(ctx) {
@@ -521,6 +658,21 @@ async function editReview(ctx) {
   // 菜已经被删了：没有可合并的对象。直接置为驳回，否则这条提案会永久挂在待审列表里，
   // 主人家点进去又合并不了，形成死循环。
   if (!dish) {
+    await dishEdits().doc(id).update({ data: { status: STATUS.REJECTED, reviewedAt: ts } });
+    return { status: STATUS.REJECTED };
+  }
+
+  // 删除提案：通过即软删除。理由取提案里提交的那条（创建者填的），记录人记主人家。
+  if (proposal.type === EDIT_TYPE_DELETE) {
+    if (isDeleted(dish)) invalid('这道菜已经删除了');
+    const reason = typeof proposal.reason === 'string' ? proposal.reason.trim() : '';
+    await softDeleteDish(dishId, dish, ctx.openid, reason, ts);
+    await dishEdits().doc(id).update({ data: { status: STATUS.APPROVED, reviewedAt: ts } });
+    return { status: STATUS.APPROVED };
+  }
+
+  // 修改提案：已软删除的菜同样「没有可合并的对象」，与菜不存在一并按驳回处理
+  if (isDeleted(dish)) {
     await dishEdits().doc(id).update({ data: { status: STATUS.REJECTED, reviewedAt: ts } });
     return { status: STATUS.REJECTED };
   }
@@ -596,6 +748,52 @@ async function editHistory(ctx) {
     .get();
 
   const list = await attachTempUrls(listRes && listRes.data, { fields: EDIT_IMAGE_FIELDS });
+  return listResult(list, total, paging);
+}
+
+/**
+ * dish.myEdits —— 我提交过的修改 / 删除申请（v1.0.8 §5）。
+ *
+ * 为什么需要它：创建者删除自己的菜要走「填理由 → 主人家审核」，但审核结果
+ * 不会主动通知他。没有这个接口，他提交完就永远看不到后续是过了还是被驳回。
+ *
+ * payload: { page, pageSize, type? }   type: 'delete' 只看删除申请，缺省返回全部
+ * 权限：所有人，但只返回自己提交的（按 submitter.openid 过滤，openid 只从上下文取）
+ */
+async function myEdits(ctx) {
+  const payload = ctx.payload || {};
+  const paging = pickPaging(payload);
+
+  const where = { 'submitter.openid': ctx.openid };
+  if (payload.type === 'delete' || payload.type === 'edit') {
+    // 老数据没有 type 字段，'edit' 要把「type 缺失」也算进来
+    where.type = payload.type === 'delete' ? 'delete' : _.neq('delete');
+  }
+
+  const countRes = await dishEdits().where(where).count();
+  const total = countRes && typeof countRes.total === 'number' ? countRes.total : 0;
+  const listRes = await dishEdits()
+    .where(where)
+    .orderBy('createdAt', 'desc')
+    .skip(paging.skip)
+    .limit(paging.pageSize)
+    .get();
+
+  const rows = listRes && Array.isArray(listRes.data) ? listRes.data : [];
+  const list = [];
+  for (let i = 0; i < rows.length; i += 1) {
+    const row = rows[i] || {};
+    list.push({
+      _id: typeof row._id === 'string' ? row._id : '',
+      dishId: typeof row.dishId === 'string' ? row.dishId : '',
+      dishName: typeof row.dishName === 'string' ? row.dishName : '',
+      type: row.type === 'delete' ? 'delete' : 'edit',
+      reason: typeof row.reason === 'string' ? row.reason : '',
+      status: typeof row.status === 'string' ? row.status : 'pending',
+      createdAt: typeof row.createdAt === 'number' ? row.createdAt : 0,
+      reviewedAt: typeof row.reviewedAt === 'number' ? row.reviewedAt : 0,
+    });
+  }
   return listResult(list, total, paging);
 }
 
@@ -685,7 +883,7 @@ async function unwant(ctx) {
   return { wants: wants };
 }
 
-/* ------------------------------------------ v1.0.8 §4.3：点过这道菜的人 */
+/* ---------------------------------------------- v1.0.8 §4.3：点过这道菜的人 */
 
 /** 最多返回 50 人；一次查询 100 条、最多 5 页。 */
 const ORDERERS_MAX = 50;
@@ -695,14 +893,15 @@ const ORDERERS_FETCH_MAX_PAGES = 5;
 /** 已取消的点菜记录不算「点过」（本地常量，避免 require order.js 形成环）。 */
 const ORDER_CANCELLED = 'cancelled';
 
-/** 按 dishId 拉订单（分页，最多 500 条；读失败降级为空）。 */
+/** 按 dishId 拉订单（分页，最多 500 条；读失败降级为空）。已删除的订单不算点过。 */
 async function fetchOrdersByDish(dishId) {
+  const where = _.and([{ dishId: dishId }, notDeleted()]);
   const out = [];
   for (let page = 0; page < ORDERERS_FETCH_MAX_PAGES; page += 1) {
     let batch = [];
     try {
       const res = await orders()
-        .where({ dishId: dishId })
+        .where(where)
         .orderBy('createdAt', 'desc')
         .skip(page * ORDERERS_FETCH_PAGE)
         .limit(ORDERERS_FETCH_PAGE)
@@ -716,6 +915,28 @@ async function fetchOrdersByDish(dishId) {
     if (batch.length < ORDERERS_FETCH_PAGE) break;
   }
   return out;
+}
+
+/**
+ * dish.setListed —— 上架 / 下架（SPEC-v1.0.8 §5.2 / §5.3）。
+ * 权限：创建者本人或主人家；直接生效，不走审核。
+ * 已删除的菜不能改上下架 -> NOT_FOUND。
+ */
+async function setListed(ctx) {
+  const payload = ctx.payload || {};
+  const id = pickId(payload.id, '菜品 id');
+  if (typeof payload.listed !== 'boolean') invalid('listed 必须是布尔值');
+
+  const dish = await findDish(id);
+  if (!dish) notFound('菜品不存在或已被删除');
+  if (isDeleted(dish)) notFound('菜品不存在或已被删除');
+
+  const resolved = await resolveContext(ctx.openid);
+  const isCreator = typeof dish.ownerOpenid === 'string' && dish.ownerOpenid === ctx.openid;
+  if (!isCreator && !resolved.isOwner) unauthorized('只有创建者或主人家可以上下架');
+
+  await dishes().doc(id).update({ data: { listed: payload.listed, updatedAt: now() } });
+  return { id: id, listed: payload.listed };
 }
 
 /**
@@ -787,6 +1008,8 @@ module.exports = {
   create: create,
   update: update,
   remove: remove,
+  // v1.0.8 §5：上下架
+  setListed: setListed,
   mine: mine,
   reviewList: reviewList,
   review: review,
@@ -794,6 +1017,7 @@ module.exports = {
   editList: editList,
   editReview: editReview,
   editHistory: editHistory,
+  myEdits: myEdits,
   like: like,
   unlike: unlike,
   want: want,
@@ -801,8 +1025,15 @@ module.exports = {
   orderers: orderers,
   STATUS: STATUS,
   SOURCE: SOURCE,
+  EDIT_TYPE_EDIT: EDIT_TYPE_EDIT,
+  EDIT_TYPE_DELETE: EDIT_TYPE_DELETE,
   findDish: findDish,
   canSeeDish: canSeeDish,
   normalizePeople: normalizePeople,
   shapeDish: shapeDish,
+  // v1.0.8 §5：软删除判定与查询条件，menu / order / recycle 共用（dish 是依赖树叶子，不会成环）
+  notDeleted: notDeleted,
+  isDeleted: isDeleted,
+  softDeleteDish: softDeleteDish,
+  listedFromDeletedFrom: listedFromDeletedFrom,
 };
